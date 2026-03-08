@@ -302,6 +302,16 @@ body {
   letter-spacing: -0.5px;
 }
 
+.investment-withdrawal-small {
+  font-size: 10px;
+  font-weight: bold;
+  color: #92400e; /* 더 짙은 갈색/황토색 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: right;
+  letter-spacing: -0.5px;
+}
+
 /* Daily Detail Styles */
 .daily-detail-section {
   border-top: 1px solid #e2e8f0;
