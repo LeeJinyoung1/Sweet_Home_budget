@@ -142,14 +142,22 @@ body {
   color: #64748b;
   margin-bottom: 5px;
 }
-
 .form-group input, .form-group select {
   width: 100%;
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  font-size: 16px;
-  box-sizing: border-box;
+  font-size: 16px; /* 모바일 자동 줌 방지 */
+  box-sizing: border-box; /* 패딩 포함 너비 계산 */
+  background-color: #fff;
+  outline: none;
+  -webkit-appearance: none; /* 브라우저 기본 스타일 제거 */
+}
+
+/* iOS date input 특수 처리 */
+input[type="date"] {
+  min-height: 45px;
+  display: block;
 }
 
 .transaction-item {

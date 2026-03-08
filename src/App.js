@@ -590,8 +590,8 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
         <form onSubmit={handleSubmit}>
           <div className="form-group"><label>금액 {type === 'expense' && installments > 1 && `(총액, 월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus required /></div>
           <div className="form-group"><label>날짜</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: 1, minWidth: '120px' }}><label>카테고리</label><select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', overflow: 'hidden' }}>
+            <div className="form-group" style={{ flex: 1, minWidth: '45%' }}><label>카테고리</label><select value={category} onChange={(e) => setCategory(e.target.value)}>
               {categories.filter(c => {
                 if (type === 'investment') {
                   return isWithdrawal ? c.type === 'investment_withdrawal' : (c.type === 'investment_deposit' || c.type === 'investment');
@@ -599,8 +599,13 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                 return c.type === type;
               }).map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
             </select></div>
-            {type === 'expense' && <div className="form-group" style={{ flex: 1, minWidth: '120px' }}><label>결제 방법</label><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}</select></div>}
-            {type === 'expense' && !isRecurring && (<div className="form-group" style={{ flex: 1, minWidth: '120px' }}><label>할부 기간</label><select value={installments} onChange={(e) => setInstallments(e.target.value)}><option value={1}>일시불</option>{[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}</select></div>)}
+            {type === 'expense' && <div className="form-group" style={{ flex: 1, minWidth: '45%' }}><label>결제 방법</label><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}</select></div>}
+            {type === 'expense' && !isRecurring && (
+              <div className="form-group" style={{ width: '100%' }}><label>할부 기간</label><select value={installments} onChange={(e) => setInstallments(e.target.value)}>
+                <option value={1}>일시불</option>
+                {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
+              </select></div>
+            )}
           </div>
           {type === 'expense' && installments === 1 && (<div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}><input type="checkbox" id="recurring" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} style={{ width: '18px', height: '18px' }} /><label htmlFor="recurring" style={{ margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: 'bold' }}>매달 반복 결제</label></div>)}
           <div className="form-group"><label>메모</label><input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></div>
