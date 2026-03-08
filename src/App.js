@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import { Home, List, PieChart as PieChartIcon, Settings, PlusCircle, LogIn, X, LogOut, ChevronLeft, ChevronRight, Settings2, Trash2, Plus, TrendingUp, TrendingDown, Wallet, Edit2, CreditCard, Calendar, BarChart3, FileSpreadsheet } from 'lucide-react';
+import { Home, List, PieChart as PieChartIcon, Settings, PlusCircle, X, ChevronLeft, ChevronRight, Settings2, Trash2, Plus, Edit2, CreditCard, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LabelList, LineChart, Line, CartesianGrid
+  Cell, Legend, LabelList, LineChart, Line, CartesianGrid
 } from 'recharts';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
