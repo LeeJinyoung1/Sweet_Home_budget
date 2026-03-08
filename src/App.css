@@ -196,23 +196,38 @@ input[type="date"] {
 
 .month-summary-card {
   display: flex;
-  justify-content: space-around;
-  padding: 15px 10px;
+  justify-content: space-between;
+  padding: 12px 6px;
   margin-bottom: 15px;
-  font-size: 14px;
+  font-size: 12px;
+  gap: 2px;
+  box-sizing: border-box;
 }
 
 .summary-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.summary-item span:first-child {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.summary-item span:last-child {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summary-item.total {
   border-left: 1px solid #e2e8f0;
-  padding-left: 15px;
-  font-weight: bold;
+  padding-left: 2px;
 }
 
 .income-text { color: var(--income); }
@@ -227,27 +242,30 @@ input[type="date"] {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .weekday {
   background-color: #f1f5f9;
-  padding: 8px 0;
+  padding: 6px 0;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
   color: #64748b;
 }
 
 .calendar-day {
   background-color: white;
-  min-height: 60px;
-  padding: 4px;
+  min-height: 50px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .calendar-day.selected {
@@ -271,9 +289,9 @@ input[type="date"] {
 }
 
 .day-number {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   color: #1e293b;
 }
 
@@ -281,27 +299,40 @@ input[type="date"] {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 1px;
+  overflow: hidden;
 }
 
-.income-small {
-  font-size: 10px;
+.income-small, .expense-small, .investment-small, .investment-withdrawal-small {
+  font-size: 8px; /* 금액 텍스트 크기 축소 */
   font-weight: bold;
-  color: #16a34a; /* 더 진한 녹색 */
   white-space: nowrap;
   overflow: hidden;
   text-align: right;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
+  line-height: 1;
+  width: 100%;
 }
 
-.expense-small {
-  font-size: 10px;
-  font-weight: bold;
-  color: #dc2626; /* 더 진한 빨간색 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-align: right;
-  letter-spacing: -0.5px;
+.income-small { color: #16a34a; }
+.expense-small { color: #dc2626; }
+.investment-small { color: #d97706; }
+.investment-withdrawal-small { color: #92400e; }
+
+/* 아주 작은 화면 (예: iPhone SE) 대응 */
+@media (max-width: 360px) {
+  .month-summary-card {
+    padding: 8px 2px;
+  }
+  .summary-item span:last-child {
+    font-size: 9px;
+  }
+  .day-number {
+    font-size: 11px;
+  }
+  .calendar-day {
+    min-height: 45px;
+  }
 }
 
 .investment-small {
