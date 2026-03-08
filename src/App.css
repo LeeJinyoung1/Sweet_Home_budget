@@ -107,11 +107,12 @@ body {
 
 .modal-content {
   background: white;
-  width: 100%;
+  width: 90%; /* 모바일에서 좌우 여유분 확보 */
   max-width: 400px;
   border-radius: 20px;
-  padding: 25px;
+  padding: 20px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-sizing: border-box; /* 패딩이 너비를 넘지 않도록 설정 */
 }
 
 .modal-header {
@@ -144,6 +145,7 @@ body {
 }
 .form-group input, .form-group select {
   width: 100%;
+  display: block; /* 줄 바꿈 확실히 적용 */
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -152,12 +154,14 @@ body {
   background-color: #fff;
   outline: none;
   -webkit-appearance: none; /* 브라우저 기본 스타일 제거 */
+  min-width: 0; /* Flexbox 내에서 수축 가능하도록 설정 */
 }
 
-/* iOS date input 특수 처리 */
+/* 날짜 입력창 특수 최적화 */
 input[type="date"] {
   min-height: 45px;
-  display: block;
+  max-width: 100%;
+  position: relative;
 }
 
 .transaction-item {
