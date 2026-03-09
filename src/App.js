@@ -727,13 +727,13 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: '#64748b' }}>₩</span>
+            <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: '#64748b', zIndex: 1 }}>₩</span>
               <input 
                 type="number" 
                 value={amount} 
                 onChange={(e) => setAmount(e.target.value)} 
-                style={{ paddingLeft: '36px', fontSize: '20px', fontWeight: '800' }}
+                style={{ paddingLeft: '32px', fontSize: '20px', fontWeight: '800', width: '100%', boxSizing: 'border-box' }}
                 placeholder="0"
                 autoFocus 
                 required 
@@ -741,16 +741,16 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1.2 }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+            <div className="form-group" style={{ flex: 1.2, minWidth: 0 }}>
               <label>날짜</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
             
             {type === 'expense' && (
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
                 <label>결제 방법</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
                   {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
                 </select>
               </div>
@@ -759,21 +759,24 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
           
           <div className="form-group">
             <label>카테고리</label>
-            <div className="category-chips-container">
+            <div className="category-list-container">
               {categories.filter(c => {
                 if (type === 'investment') {
                   return isWithdrawal ? c.type === 'investment_withdrawal' : (c.type === 'investment_deposit' || c.type === 'investment');
                 }
                 return c.type === type;
               }).map(cat => (
-                <button
+                <div
                   key={cat.id}
-                  type="button"
-                  className={`category-chip ${category === cat.name ? `selected ${type}` : ''}`}
+                  className={`category-list-item ${category === cat.name ? `selected ${type}` : ''}`}
                   onClick={() => setCategory(cat.name)}
                 >
-                  {cat.name}
-                </button>
+                  <div className="category-dot"></div>
+                  <span className="category-name">{cat.name}</span>
+                  {category === cat.name && (
+                    <div style={{ color: 'inherit', fontWeight: 'bold', fontSize: '18px' }}>✓</div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
