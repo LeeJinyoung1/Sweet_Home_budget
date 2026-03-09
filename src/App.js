@@ -727,13 +727,17 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
-            <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: '#64748b', zIndex: 1 }}>₩</span>
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
               <input 
                 type="number" 
                 value={amount} 
                 onChange={(e) => setAmount(e.target.value)} 
-                style={{ paddingLeft: '32px', fontSize: '20px', fontWeight: '800', width: '100%', boxSizing: 'border-box' }}
+                style={{ 
+                  fontSize: '20px', 
+                  fontWeight: '800', 
+                  width: '100%', 
+                  boxSizing: 'border-box' 
+                }}
                 placeholder="0"
                 autoFocus 
                 required 
@@ -741,16 +745,26 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-            <div className="form-group" style={{ flex: 1.2, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'flex-end', boxSizing: 'border-box' }}>
+            <div className="form-group" style={{ flex: '1 1 55%', minWidth: 0 }}>
               <label>날짜</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required style={{ width: '100%', boxSizing: 'border-box' }} />
+              <input 
+                type="date" 
+                value={date} 
+                onChange={(e) => setDate(e.target.value)} 
+                required 
+                style={{ width: '100%', display: 'block' }}
+              />
             </div>
             
             {type === 'expense' && (
-              <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
+              <div className="form-group" style={{ flex: '1 1 45%', minWidth: 0 }}>
                 <label>결제 방법</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }}>
+                <select 
+                  value={paymentMethod} 
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  style={{ width: '100%', display: 'block' }}
+                >
                   {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
                 </select>
               </div>
