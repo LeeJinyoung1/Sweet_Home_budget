@@ -13,6 +13,11 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapsh
 import './App.css';
 
 // --- Utils ---
+/**
+ * Date 객체를 'YYYY-MM-DD' 형식의 문자열로 변환합니다.
+ * @param {Date} date - 변환할 날짜 객체
+ * @returns {string} 'YYYY-MM-DD' 형식의 문자열
+ */
 const formatDate = (date) => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -20,11 +25,18 @@ const formatDate = (date) => {
   return `${y}-${m}-${d}`;
 };
 
+/**
+ * 특정 기준일(startDay)을 바탕으로 현재 날짜가 속한 한 달 주기의 시작일과 종료일을 계산합니다.
+ * @param {Date} currentDate - 기준 날짜
+ * @param {number} startDay - 월 시작일 (예: 1일, 5일 등)
+ * @returns {object} { start, end, label } 시작일, 종료일 문자열 및 표시용 라벨
+ */
 const getPeriodDates = (currentDate, startDay) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const day = currentDate.getDate();
   let startYear = year, startMonth = month;
+  // 현재 날짜가 기준일보다 작으면 이전 달부터 시작된 주기로 판단
   if (day < startDay) {
     startMonth = month - 1;
     if (startMonth < 0) { startMonth = 11; startYear = year - 1; }
@@ -38,7 +50,11 @@ const COLORS = ['#4f46e5', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#8b5cf6'
 
 // --- Components ---
 
-// 1. Stats Component (Monthly Category Analysis)
+/**
+ * 통계 화면 컴포넌트: 카테고리별 분석, 추세 그래프, 엑셀 내보내기 기능을 제공합니다.
+ * @param {Array} transactions - 전체 내역 데이터
+ * @param {number} startDay - 월 시작 기준일
+ */
 const Stats = ({ transactions, startDay }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [activeType, setActiveType] = useState('expense'); 
@@ -48,10 +64,11 @@ const Stats = ({ transactions, startDay }) => {
   const { start, end, label } = getPeriodDates(viewDate, startDay);
   const filtered = transactions.filter(t => t.date >= start && t.date <= end);
 
+  // 선택된 기간 및 타입에 따른 카테고리별 합계 계산 (메모이제이션)
   const statsData = useMemo(() => {
     const map = {};
     const targetTransactions = activeType === 'investment' 
-      ? transactions.filter(t => t.type === 'investment' && t.date <= end)
+      ? transactions.filter(t => t.type === 'investment' && t.date <= end) // 투자는 누적액 계산
       : filtered.filter(t => t.type === activeType);
 
     targetTransactions.forEach(t => {
@@ -64,9 +81,16 @@ const Stats = ({ transactions, startDay }) => {
 
   const totalAmount = statsData.reduce((acc, curr) => acc + curr.value, 0);
 
+  /**
+   * 현재 통계 데이터를 다중 시트 엑셀 파일로 생성하여 다운로드합니다.
+   */
   const exportToExcel = () => {
     if (filtered.length === 0) return alert('내보낼 데이터가 없습니다.');
     const workbook = XLSX.utils.book_new();
+    
+    /**
+     * 특정 타입별 통계 데이터를 엑셀 시트용 객체 배열로 변환합니다.
+     */
     const getStatsData = (type) => {
       const map = {};
       const targetTs = type === 'investment'
@@ -82,6 +106,7 @@ const Stats = ({ transactions, startDay }) => {
         '비중(%)': ((map[name] / (targetTs.reduce((acc, curr) => acc + (curr.isWithdrawal ? -curr.amount : curr.amount), 0) || 1)) * 100).toFixed(1) + '%'
       })).sort((a, b) => b['합계 금액'] - a['합계 금액']);
     };
+
     const types = [{ id: 'expense', name: '지출 통계' }, { id: 'income', name: '수입 통계' }, { id: 'investment', name: '투자 통계' }];
     types.forEach(t => {
       const stats = getStatsData(t.id);
@@ -90,6 +115,8 @@ const Stats = ({ transactions, startDay }) => {
         XLSX.utils.book_append_sheet(workbook, ws, t.name);
       }
     });
+
+    // 전체 상세 내역 시트 추가
     const detailData = filtered.map(t => ({
       '날짜': t.date,
       '구분': t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : (t.isWithdrawal ? '투자(출금)' : '투자(납입)'),
@@ -100,9 +127,11 @@ const Stats = ({ transactions, startDay }) => {
     }));
     const detailWs = XLSX.utils.json_to_sheet(detailData);
     XLSX.utils.book_append_sheet(workbook, detailWs, "상세 내역");
+
     XLSX.writeFile(workbook, `SweetHomeBudget_통계_${label.replace(' ', '')}.xlsx`);
   };
 
+  // 최근 n개월간의 카테고리별 소비 추세 데이터 계산 (메모이제이션)
   const trendData = useMemo(() => {
     const months = [];
     for (let i = trendRange - 1; i >= 0; i--) {
@@ -130,6 +159,7 @@ const Stats = ({ transactions, startDay }) => {
     });
   }, [transactions, viewDate, startDay, activeType, statsData, trendRange, selectedTrendCategory]);
 
+  // 타입이나 조회 기간 변경 시 선택된 추세 카테고리 초기화
   useEffect(() => { setSelectedTrendCategory(null); }, [activeType, trendRange, viewDate]);
 
   const totalInc = filtered.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
@@ -252,6 +282,9 @@ const Stats = ({ transactions, startDay }) => {
   );
 };
 
+/**
+ * App 메인 컴포넌트: 전역 상태 관리, 인증 흐름, 실시간 데이터 동기화 및 라우팅을 담당합니다.
+ */
 function App() {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -263,6 +296,7 @@ function App() {
   const [startDay, setStartDay] = useState(1);
   const [modalConfig, setModalConfig] = useState({ isOpen: false, type: 'expense', date: null, isWithdrawal: false, editData: null });
 
+  // Firebase 인증 상태 변경 감지 및 사용자 프로필 동기화
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -271,9 +305,11 @@ function App() {
         onSnapshot(userRef, async (snap) => {
           if (snap.exists()) {
             const data = snap.data();
+            // 특정 이메일 계정은 관리자 권한 자동 부여
             if (u.email === 'adsl5964@gmail.com' && (!data.isAdmin || !data.approved)) { await updateDoc(userRef, { isAdmin: true, approved: true }); }
             setUserProfile(data);
           } else {
+            // 신규 사용자 가입 처리
             const isSpecialAdmin = u.email === 'adsl5964@gmail.com';
             const newUser = { uid: u.uid, email: u.email, displayName: u.displayName, photoURL: u.photoURL, approved: isSpecialAdmin, isAdmin: isSpecialAdmin, createdAt: serverTimestamp() };
             await setDoc(userRef, newUser);
@@ -286,6 +322,7 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // 관리자 전용: 전체 사용자 목록 실시간 동기화
   useEffect(() => {
     if (userProfile?.isAdmin) {
       const unsubscribe = onSnapshot(query(collection(db, "users"), orderBy("createdAt", "desc")), (snap) => {
@@ -295,6 +332,7 @@ function App() {
     }
   }, [userProfile]);
 
+  // 공통 설정 및 카테고리/결제수단 데이터 동기화
   useEffect(() => {
     if (!user || !userProfile?.approved) return;
     onSnapshot(doc(db, "settings", "global"), (snap) => { if (snap.exists()) setStartDay(snap.data().startDay || 1); });
@@ -302,6 +340,7 @@ function App() {
     onSnapshot(query(collection(db, "paymentMethods"), orderBy("createdAt", "asc")), (snap) => { setPaymentMethods(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
   }, [user, userProfile]);
 
+  // 거래 내역 데이터 실시간 동기화
   useEffect(() => {
     if (!user) { setTransactions([]); return; }
     const unsubscribe = onSnapshot(query(collection(db, "transactions"), orderBy("date", "desc"), orderBy("createdAt", "desc")), (snap) => {
@@ -310,31 +349,64 @@ function App() {
     return () => unsubscribe();
   }, [user]);
 
+  /**
+   * 원본 거래 내역을 바탕으로 할부 및 반복 결제 데이터를 가상 내역으로 확장합니다 (메모이제이션).
+   */
   const expandedTransactions = useMemo(() => {
     const result = [];
     transactions.forEach(t => {
+      // 날짜 파싱 (YYYY-MM-DD 안전하게 분리)
+      const [y, m, d] = t.date.split('-').map(Number);
       const installments = parseInt(t.installments || 1);
+
       if (t.type === 'expense' && installments > 1) {
+        // 할부 내역 확장
         const monthlyAmount = Math.floor(t.amount / installments);
-        const firstDate = new Date(t.date);
         for (let i = 0; i < installments; i++) {
-          const virtualDate = new Date(firstDate.getFullYear(), firstDate.getMonth() + i, firstDate.getDate());
-          if (virtualDate.getMonth() !== (firstDate.getMonth() + i) % 12) virtualDate.setDate(0);
-          result.push({ ...t, id: `${t.id}-v${i}`, originalId: t.id, amount: i === installments - 1 ? t.amount - (monthlyAmount * (installments - 1)) : monthlyAmount, date: formatDate(virtualDate), memo: `${t.memo || t.category} (${i + 1}/${installments}회차)`, isInstallment: true });
+          const virtualDate = new Date(y, m - 1 + i, d);
+          // 해당 월에 일자가 없는 경우 (예: 31일이 없는 달) 마지막 날로 조정
+          if (virtualDate.getMonth() !== (m - 1 + i) % 12) virtualDate.setDate(0);
+          
+          result.push({ 
+            ...t, 
+            id: `${t.id}-v${i}`, 
+            originalId: t.id, 
+            amount: i === installments - 1 ? t.amount - (monthlyAmount * (installments - 1)) : monthlyAmount, 
+            date: formatDate(virtualDate), 
+            memo: `${t.memo || t.category} (${i + 1}/${installments}회차)`, 
+            isInstallment: true 
+          });
         }
-      } else if (t.type === 'expense' && t.isRecurring) {
-        const firstDate = new Date(t.date);
+      } else if (t.type === 'expense' && (t.isRecurring === true || t.isRecurring === 'true')) {
+        // 반복 결제 확장: 향후 36개월간의 가상 내역 생성
         for (let i = 0; i < 36; i++) {
-          const virtualDate = new Date(firstDate.getFullYear(), firstDate.getMonth() + i, firstDate.getDate());
-          if (virtualDate.getMonth() !== (firstDate.getMonth() + i) % 12) virtualDate.setDate(0);
-          result.push({ ...t, id: `${t.id}-r${i}`, originalId: t.id, date: formatDate(virtualDate), memo: `${t.memo || t.category} (반복)`, isRecurringInstance: true });
+          const virtualDate = new Date(y, m - 1 + i, d);
+          if (virtualDate.getMonth() !== (m - 1 + i) % 12) virtualDate.setDate(0);
+          
+          result.push({ 
+            ...t, 
+            id: `${t.id}-r${i}`, 
+            originalId: t.id, 
+            date: formatDate(virtualDate), 
+            memo: `${t.memo || t.category} (반복)`, 
+            isRecurringInstance: true 
+          });
         }
-      } else { result.push({ ...t, installments: 1 }); }
+      } else { 
+        result.push({ ...t, installments: 1 }); 
+      }
     });
     return result;
   }, [transactions]);
 
+  /**
+   * 내역 추가 모달을 엽니다.
+   */
   const openAddModal = (type, date, isWithdrawal = false) => setModalConfig({ isOpen: true, type, date, isWithdrawal, editData: null });
+  
+  /**
+   * 내역 수정 모달을 엽니다 (가상 내역의 경우 원본 데이터를 찾아 연결).
+   */
   const openEditModal = (t) => {
     const target = t.originalId ? transactions.find(orig => orig.id === t.originalId) : t;
     setModalConfig({ isOpen: true, type: target.type, date: target.date, isWithdrawal: target.isWithdrawal || false, editData: target });
@@ -375,6 +447,9 @@ function App() {
   );
 }
 
+/**
+ * 승인 대기 화면 컴포넌트: 관리자 승인이 없는 신규 사용자를 위한 안내 페이지입니다.
+ */
 const PendingApproval = ({ user }) => (
   <div className="main-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', textAlign: 'center' }}>
     <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '20px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
@@ -386,6 +461,9 @@ const PendingApproval = ({ user }) => (
   </div>
 );
 
+/**
+ * 사용자 관리 컴포넌트 (Admin 전용): 가입된 사용자 목록을 조회하고 사용 승인/취소를 처리합니다.
+ */
 const UserManagement = ({ users, onUpdate }) => {
   return (
     <div className="main-content">
@@ -400,27 +478,38 @@ const UserManagement = ({ users, onUpdate }) => {
   );
 };
 
+/**
+ * 달력 대시보드 컴포넌트: 메인 화면으로 달력 형태의 요약과 일별 상세 내역을 제공합니다.
+ */
 const CalendarDashboard = ({ transactions, startDay, onAddClick, onEdit }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const { start, end, label } = getPeriodDates(viewDate, startDay);
+  
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  
+  /**
+   * 현재 표시된 주기의 달력 그리드에 필요한 날짜 배열을 생성합니다 (이전/다음 달 패딩 포함).
+   */
   const getDaysArray = () => {
     const arr = [];
     const firstDate = new Date(start);
     const lastDate = new Date(end);
+    // 달력 첫 주의 일요일 찾기
     const curr = new Date(firstDate); curr.setDate(curr.getDate() - curr.getDay());
+    // 달력 마지막 주의 토요일 찾기
     const lastPadded = new Date(lastDate); lastPadded.setDate(lastPadded.getDate() + (6 - lastPadded.getDay()));
     while (curr <= lastPadded) { arr.push(new Date(curr)); curr.setDate(curr.getDate() + 1); }
     return arr;
   };
+
   const periodDays = getDaysArray();
   const monthTrans = transactions.filter(t => t.date >= start && t.date <= end);
   const totalInc = monthTrans.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const totalExp = monthTrans.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
-  const currentMonthInv = monthTrans.filter(t => t.type === 'investment').reduce((acc, curr) => acc + (curr.isWithdrawal ? -curr.amount : curr.amount), 0);
   const cumulativeInv = transactions.filter(t => t.type === 'investment' && t.date <= end).reduce((acc, curr) => acc + (curr.isWithdrawal ? -curr.amount : curr.amount), 0);
+  
   return (
     <div className="main-content calendar-view">
       <div className="calendar-header">
@@ -493,8 +582,13 @@ const CalendarDashboard = ({ transactions, startDay, onAddClick, onEdit }) => {
   );
 };
 
+/**
+ * 연간 요약 컴포넌트: 선택한 연도의 월별 수입/지출/투자 현황을 리스트 형태로 표시합니다.
+ */
 const History = ({ transactions }) => {
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  
+  // 연간 데이터를 월별로 합산 (메모이제이션)
   const monthlyStats = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({ name: `${i + 1}월`, income: 0, expense: 0, investment: 0, balance: 0 }));
     transactions.forEach(t => {
@@ -508,10 +602,12 @@ const History = ({ transactions }) => {
     });
     return months.map(m => ({ ...m, balance: m.income - m.expense }));
   }, [transactions, viewYear]);
+
   const yearlyTotalInc = monthlyStats.reduce((acc, curr) => acc + curr.income, 0);
   const yearlyTotalExp = monthlyStats.reduce((acc, curr) => acc + curr.expense, 0);
   const yearlyTotalInv = monthlyStats.reduce((acc, curr) => acc + curr.investment, 0);
   const yearlyBalance = yearlyTotalInc - yearlyTotalExp;
+
   return (
     <div className="main-content">
       <div className="calendar-header" style={{ marginBottom: '20px' }}><button onClick={() => setViewYear(viewYear - 1)} className="icon-btn"><ChevronLeft /></button><div style={{ textAlign: 'center' }}><h2 style={{ margin: 0 }}>{viewYear}년 내역 요약</h2><div style={{ fontSize: '12px', color: '#64748b' }}>연간 월별 현황</div></div><button onClick={() => setViewYear(viewYear + 1)} className="icon-btn"><ChevronRight /></button></div>
@@ -535,6 +631,9 @@ const History = ({ transactions }) => {
   );
 };
 
+/**
+ * 내역 추가/수정 모달 컴포넌트: 모든 타입의 거래 내역을 입력하거나 수정, 삭제할 수 있는 폼을 제공합니다.
+ */
 const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isWithdrawal: initialIsWithdrawal, categories, paymentMethods, editData }) => {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
@@ -546,12 +645,16 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
   const [installments, setInstallments] = useState(1);
   const [isRecurring, setIsRecurring] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 모달이 열릴 때 초기 데이터 설정
   useEffect(() => {
     if (isOpen) {
       if (editData) { setAmount(editData.amount.toString()); setType(editData.type); setIsWithdrawal(editData.isWithdrawal || false); setCategory(editData.category); setPaymentMethod(editData.paymentMethod || ''); setDate(editData.date); setMemo(editData.memo || ''); setInstallments(editData.installments || 1); setIsRecurring(editData.isRecurring || false); }
       else { setAmount(''); setType(initialType || 'expense'); setIsWithdrawal(initialIsWithdrawal || false); setDate(initialDate || formatDate(new Date())); setMemo(''); setInstallments(1); setIsRecurring(false); }
     }
   }, [isOpen, editData, initialDate, initialType, initialIsWithdrawal]);
+
+  // 타입 선택 시 카테고리 및 결제수단 기본값 설정
   useEffect(() => {
     if (isOpen && !editData) {
       const targetType = type === 'investment' ? (isWithdrawal ? 'investment_withdrawal' : 'investment_deposit') : type;
@@ -560,7 +663,12 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
       if (type === 'expense' && paymentMethods.length > 0) setPaymentMethod(paymentMethods[0].name);
     }
   }, [type, isWithdrawal, categories, paymentMethods, isOpen, editData]);
+
   if (!isOpen) return null;
+
+  /**
+   * 폼 데이터를 검증하고 Firebase Firestore에 저장(추가 또는 수정)합니다.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault(); if (!amount) return alert('금액 입력!'); setLoading(true);
     try {
@@ -570,58 +678,230 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
       onClose();
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
+
+  /**
+   * 현재 내역을 삭제합니다.
+   */
   const handleDelete = async () => {
     const msg = editData.isRecurring ? '정말 삭제하시겠습니까? (연결된 모든 반복 내역이 삭제됩니다)' : (editData.installments > 1 ? '정말 삭제하시겠습니까? (할부 내역 전체가 삭제됩니다)' : '정말 삭제하시겠습니까?');
     if (!editData || !window.confirm(msg)) return;
     setLoading(true);
     try { await deleteDoc(doc(db, "transactions", editData.id)); onClose(); } catch (e) { console.error(e); } finally { setLoading(false); }
   };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <div className="modal-header"><h3>{editData ? '내역 수정' : '내역 추가'}</h3><button onClick={onClose} className="close-btn"><X size={24} /></button></div>
-        {!editData && (<div className="type-selector"><button className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>지출</button><button className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>수입</button><button className={type === 'investment' ? 'active investment' : ''} onClick={() => setType('investment')}>투자</button></div>)}
-        {type === 'investment' && !editData && (
-          <div className="type-selector" style={{ marginTop: '-10px', marginBottom: '20px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7' }}>
-            <button className={!isWithdrawal ? 'active investment' : ''} onClick={() => setIsWithdrawal(false)}>납입 (+)</button>
-            <button className={isWithdrawal ? 'active' : ''} style={{backgroundColor: isWithdrawal ? '#f59e0b' : ''}} onClick={() => setIsWithdrawal(true)}>출금 (-)</button>
+        <div className="modal-header">
+          <h3>{editData ? '내역 수정' : '내역 추가'}</h3>
+          <button onClick={onClose} className="close-btn"><X size={20} /></button>
+        </div>
+
+        {!editData && (
+          <div className="type-selector">
+            <button className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>지출</button>
+            <button className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>수입</button>
+            <button className={type === 'investment' ? 'active investment' : ''} onClick={() => setType('investment')}>투자</button>
           </div>
         )}
+
+        {type === 'investment' && !editData && (
+          <div className="type-selector" style={{ marginTop: '-12px', marginBottom: '24px', backgroundColor: '#fff7ed' }}>
+            <button 
+              className={!isWithdrawal ? 'active investment' : ''} 
+              onClick={() => setIsWithdrawal(false)}
+              style={{ color: !isWithdrawal ? '#d97706' : '#94a3b8' }}
+            >
+              납입 (+)
+            </button>
+            <button 
+              className={isWithdrawal ? 'active' : ''} 
+              style={{ backgroundColor: isWithdrawal ? 'white' : 'transparent', color: isWithdrawal ? '#9a3412' : '#94a3b8' }} 
+              onClick={() => setIsWithdrawal(true)}
+            >
+              출금 (-)
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <div className="form-group"><label>금액 {type === 'expense' && installments > 1 && `(총액, 월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus required /></div>
-          <div className="form-group"><label>날짜</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', overflow: 'hidden' }}>
-            <div className="form-group" style={{ flex: 1, minWidth: '45%' }}><label>카테고리</label><select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <div className="form-group">
+            <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: '#64748b' }}>₩</span>
+              <input 
+                type="number" 
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+                style={{ paddingLeft: '36px', fontSize: '20px', fontWeight: '800' }}
+                placeholder="0"
+                autoFocus 
+                required 
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1.2 }}>
+              <label>날짜</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </div>
+            
+            {type === 'expense' && (
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>결제 방법</label>
+                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                  {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label>카테고리</label>
+            <div className="category-chips-container">
               {categories.filter(c => {
                 if (type === 'investment') {
                   return isWithdrawal ? c.type === 'investment_withdrawal' : (c.type === 'investment_deposit' || c.type === 'investment');
                 }
                 return c.type === type;
-              }).map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-            </select></div>
-            {type === 'expense' && <div className="form-group" style={{ flex: 1, minWidth: '45%' }}><label>결제 방법</label><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}</select></div>}
-            {type === 'expense' && !isRecurring && (
-              <div className="form-group" style={{ width: '100%' }}><label>할부 기간</label><select value={installments} onChange={(e) => setInstallments(e.target.value)}>
-                <option value={1}>일시불</option>
-                {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
-              </select></div>
-            )}
+              }).map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`category-chip ${category === cat.name ? `selected ${type}` : ''}`}
+                  onClick={() => setCategory(cat.name)}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
-          {type === 'expense' && installments === 1 && (<div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}><input type="checkbox" id="recurring" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} style={{ width: '18px', height: '18px' }} /><label htmlFor="recurring" style={{ margin: 0, fontSize: '15px', color: '#1e293b', fontWeight: 'bold' }}>매달 반복 결제</label></div>)}
-          <div className="form-group"><label>메모</label><input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>{editData && (<button type="button" onClick={handleDelete} disabled={loading} className="btn" style={{ flex: 1, backgroundColor: '#64748b' }}><Trash2 size={18} style={{ marginRight: '5px' }} /> 삭제</button>)}<button type="submit" disabled={loading} className="btn" style={{ flex: 2, backgroundColor: type === 'expense' ? '#ef4444' : type === 'income' ? '#22c55e' : '#f59e0b' }}>{loading ? '처리 중...' : '저장하기'}</button></div>
+
+          <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+            {type === 'expense' && (
+              <div className="form-group">
+              <label>결제 옵션</label>
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                alignItems: 'center', 
+                backgroundColor: '#f8fafc', 
+                padding: '12px', 
+                borderRadius: '16px', 
+                border: '1px solid #e2e8f0' 
+              }}>
+                <div style={{ flex: 1 }}>
+                  <select 
+                    value={installments} 
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setInstallments(val);
+                      if (val > 1) setIsRecurring(false);
+                    }}
+                    disabled={isRecurring}
+                    style={{ padding: '8px', fontSize: '14px' }}
+                  >
+                    <option value={1}>일시불</option>
+                    {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
+                  </select>
+                </div>
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '8px 12px', 
+                    backgroundColor: isRecurring ? 'white' : 'transparent',
+                    borderRadius: '12px',
+                    cursor: installments > 1 ? 'not-allowed' : 'pointer',
+                    border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
+                    boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  onClick={() => {
+                    if (installments === 1) setIsRecurring(!isRecurring);
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="recurring" 
+                    checked={isRecurring} 
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setIsRecurring(e.target.checked);
+                      if (e.target.checked) setInstallments(1);
+                    }} 
+                    disabled={installments > 1}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                  />
+                  <label 
+                    htmlFor="recurring" 
+                    style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: installments > 1 ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    반복
+                  </label>
+                </div>
+              </div>
+            </div> // form-group 닫기 추가
+          )}
+        </div>
+
+          <div className="form-group">
+            <label>메모</label>
+            <input 
+              type="text" 
+              value={memo} 
+              onChange={(e) => setMemo(e.target.value)} 
+              placeholder="내용 입력 (선택)"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexShrink: 0 }}>
+            {editData && (
+              <button 
+                type="button" 
+                onClick={handleDelete} 
+                disabled={loading} 
+                className="btn" 
+                style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', padding: '12px' }}
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="btn" 
+              style={{ 
+                flex: 4, 
+                backgroundColor: type === 'expense' ? '#ef4444' : type === 'income' ? '#22c55e' : '#f59e0b',
+                padding: '12px'
+              }}
+            >
+              {loading ? '처리 중...' : (editData ? '수정 완료' : '저장하기')}
+            </button>
+          </div>
         </form>
       </div>
     </div>
   );
 };
 
+/**
+ * 설정 화면 컴포넌트: 사용자 프로필 확인, 한 달 시작일 변경, 카테고리/결제수단 관리 및 데이터 초기화 기능을 제공합니다.
+ */
 const SettingsView = ({ user, userProfile, startDay, setStartDay, transactions }) => {
+  /**
+   * (관리자 전용) 모든 거래 내역 데이터를 삭제합니다.
+   */
   const handleDeleteAll = async () => {
     if (!window.confirm('정말 모든 내역(수입, 지출, 투자)을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
     alert('삭제를 시작합니다. 잠시만 기다려 주세요...');
     try { const dp = transactions.map(t => deleteDoc(doc(db, "transactions", t.id))); await Promise.all(dp); alert('모든 내역이 성공적으로 삭제되었습니다.'); } catch (e) { console.error(e); alert('삭제 중 오류가 발생했습니다.'); }
   };
+
   return (
     <div className="main-content">
       <h2>설정</h2>
@@ -636,16 +916,24 @@ const SettingsView = ({ user, userProfile, startDay, setStartDay, transactions }
   );
 };
 
+/**
+ * 리스트 관리 컴포넌트: 카테고리나 결제 수단 같은 단순 목록 데이터를 추가, 수정, 삭제하는 공통 UI입니다.
+ */
 const ListManager = ({ title, items, onAdd, onUpdate, onDelete, backPath }) => {
   const isCategoryMode = title.includes('카테고리');
   const [newName, setNewName] = useState('');
   const [activeTab, setActiveTab] = useState('expense');
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
+
   const filteredItems = isCategoryMode ? items.filter(item => (activeTab === 'investment_deposit' ? (item.type === 'investment_deposit' || item.type === 'investment') : item.type === activeTab)) : items;
+  
   const handleAdd = (e) => { e.preventDefault(); if (!newName.trim()) return; onAdd(newName, isCategoryMode ? activeTab : null); setNewName(''); };
+  
   const handleUpdate = async (id) => { if (!editingName.trim()) return setEditingId(null); await onUpdate(id, editingName); setEditingId(null); };
+  
   const getTabLabel = (tab) => { if (tab === 'expense') return '지출'; if (tab === 'income') return '수입'; if (tab === 'investment_deposit') return '투자(입금)'; if (tab === 'investment_withdrawal') return '투자(출금)'; return ''; };
+
   return (
     <div className="main-content">
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}><Link to={backPath} className="icon-btn"><ChevronLeft /></Link><h2 style={{ margin: 0 }}>{title}</h2></div>
@@ -671,6 +959,9 @@ const ListManager = ({ title, items, onAdd, onUpdate, onDelete, backPath }) => {
   );
 };
 
+/**
+ * 로그인 화면 컴포넌트: 구글 계정을 이용한 OAuth 로그인을 제공합니다.
+ */
 const Login = () => {
   const handleGoogleLogin = () => signInWithPopup(auth, new GoogleAuthProvider());
   return (<div className="main-content login-view"><h1>Sweet Home</h1><p>우리 집 가계부</p><button onClick={handleGoogleLogin} className="btn login-btn" style={{ marginTop: '20px' }}>구글로 시작하기</button></div>);
