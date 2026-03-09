@@ -727,16 +727,14 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
-            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ width: '100%' }}>
               <input 
                 type="number" 
                 value={amount} 
                 onChange={(e) => setAmount(e.target.value)} 
                 style={{ 
                   fontSize: '20px', 
-                  fontWeight: '800', 
-                  width: '100%', 
-                  boxSizing: 'border-box' 
+                  fontWeight: '800'
                 }}
                 placeholder="0"
                 autoFocus 
