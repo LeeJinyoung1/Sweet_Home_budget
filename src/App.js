@@ -265,10 +265,21 @@ const Stats = ({ transactions, startDay }) => {
                   <YAxis hide />
                   <Tooltip formatter={(v) => v.toLocaleString()} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Legend iconType="circle" onClick={(e) => setSelectedTrendCategory(prev => prev === e.dataKey ? null : e.dataKey)} wrapperStyle={{ cursor: 'pointer', fontSize: '12px', marginTop: '10px' }} />
-                  {statsData.slice(0, 5).map((s, index) => {
-                    if (selectedTrendCategory !== null && s.name !== selectedTrendCategory) return null;
-                    const originalIndex = statsData.findIndex(item => item.name === s.name);
-                    return (<Line key={s.name} type="monotone" dataKey={s.name} stroke={COLORS[originalIndex % COLORS.length]} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />);
+                  {/* 선택된 카테고리가 있으면 해당 카테고리만, 없으면 상위 5개 카테고리의 라인을 렌더링 */}
+                  {(selectedTrendCategory ? [selectedTrendCategory] : statsData.slice(0, 5).map(s => s.name)).map((catName) => {
+                    const originalIndex = statsData.findIndex(item => item.name === catName);
+                    const color = originalIndex !== -1 ? COLORS[originalIndex % COLORS.length] : '#4f46e5';
+                    return (
+                      <Line 
+                        key={catName} 
+                        type="monotone" 
+                        dataKey={catName} 
+                        stroke={color} 
+                        strokeWidth={3} 
+                        dot={{ r: 3 }} 
+                        activeDot={{ r: 6 }} 
+                      />
+                    );
                   })}
                 </LineChart>
               </ResponsiveContainer>
@@ -377,7 +388,7 @@ function App() {
             isInstallment: true 
           });
         }
-      } else if (t.type === 'expense' && (t.isRecurring === true || t.isRecurring === 'true')) {
+      } else if ((t.type === 'expense' || t.type === 'investment') && (t.isRecurring === true || t.isRecurring === 'true')) {
         // 반복 결제 확장: 향후 36개월간의 가상 내역 생성
         for (let i = 0; i < 36; i++) {
           const virtualDate = new Date(y, m - 1 + i, d);
@@ -412,7 +423,7 @@ function App() {
     setModalConfig({ isOpen: true, type: target.type, date: target.date, isWithdrawal: target.isWithdrawal || false, editData: target });
   };
 
-  if (loading) return (<div className="initial-loading"><img src="logo192.png" alt="Logo" className="loading-logo" /><div className="loading-text">Sweet Home Budget</div></div>);
+  if (loading) return (<div className="initial-loading"><img src="img/base_img.jpg" alt="Logo" className="loading-logo" /></div>);
 
   return (
     <div className="App">
@@ -672,7 +683,21 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
   const handleSubmit = async (e) => {
     e.preventDefault(); if (!amount) return alert('금액 입력!'); setLoading(true);
     try {
-      const d = { uid: user.uid, userName: user.displayName, userPhoto: user.photoURL, type, isWithdrawal: type === 'investment' ? isWithdrawal : false, amount: parseInt(amount), category, paymentMethod: type === 'expense' ? paymentMethod : '', date, memo, installments: type === 'expense' ? parseInt(installments) : 1, isRecurring: type === 'expense' ? isRecurring : false, updatedAt: serverTimestamp() };
+      const d = { 
+        uid: user.uid, 
+        userName: user.displayName, 
+        userPhoto: user.photoURL, 
+        type, 
+        isWithdrawal: type === 'investment' ? isWithdrawal : false, 
+        amount: parseInt(amount), 
+        category, 
+        paymentMethod: type === 'expense' ? paymentMethod : '', 
+        date, 
+        memo, 
+        installments: type === 'expense' ? parseInt(installments) : 1, 
+        isRecurring: (type === 'expense' || type === 'investment') ? isRecurring : false, 
+        updatedAt: serverTimestamp() 
+      };
       if (editData) await updateDoc(doc(db, "transactions", editData.id), d);
       else await addDoc(collection(db, "transactions"), { ...d, createdAt: serverTimestamp() });
       onClose();
@@ -794,74 +819,78 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
           </div>
 
           <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
-            {type === 'expense' && (
+            {(type === 'expense' || type === 'investment') && (
               <div className="form-group">
-              <label>결제 옵션</label>
-              <div style={{ 
-                display: 'flex', 
-                gap: '12px', 
-                alignItems: 'center', 
-                backgroundColor: '#f8fafc', 
-                padding: '12px', 
-                borderRadius: '16px', 
-                border: '1px solid #e2e8f0' 
-              }}>
-                <div style={{ flex: 1 }}>
-                  <select 
-                    value={installments} 
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setInstallments(val);
-                      if (val > 1) setIsRecurring(false);
+                <label>{type === 'expense' ? '결제 옵션' : '입력 옵션'}</label>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '12px', 
+                  alignItems: 'center', 
+                  backgroundColor: '#f8fafc', 
+                  padding: '12px', 
+                  borderRadius: '16px', 
+                  border: '1px solid #e2e8f0' 
+                }}>
+                  {type === 'expense' && (
+                    <div style={{ flex: 1 }}>
+                      <select 
+                        value={installments} 
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setInstallments(val);
+                          if (val > 1) setIsRecurring(false);
+                        }}
+                        disabled={isRecurring}
+                        style={{ padding: '8px', fontSize: '14px' }}
+                      >
+                        <option value={1}>일시불</option>
+                        {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
+                      </select>
+                    </div>
+                  )}
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '8px 12px', 
+                      backgroundColor: isRecurring ? 'white' : 'transparent',
+                      borderRadius: '12px',
+                      cursor: (type === 'expense' && installments > 1) ? 'not-allowed' : 'pointer',
+                      border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
+                      boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                      transition: 'all 0.2s',
+                      flex: type === 'investment' ? 1 : 'none',
+                      justifyContent: type === 'investment' ? 'center' : 'flex-start'
                     }}
-                    disabled={isRecurring}
-                    style={{ padding: '8px', fontSize: '14px' }}
+                    onClick={() => {
+                      if (type === 'investment' || installments === 1) setIsRecurring(!isRecurring);
+                    }}
                   >
-                    <option value={1}>일시불</option>
-                    {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
-                  </select>
-                </div>
-                <div 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '8px 12px', 
-                    backgroundColor: isRecurring ? 'white' : 'transparent',
-                    borderRadius: '12px',
-                    cursor: installments > 1 ? 'not-allowed' : 'pointer',
-                    border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
-                    boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                  onClick={() => {
-                    if (installments === 1) setIsRecurring(!isRecurring);
-                  }}
-                >
-                  <input 
-                    type="checkbox" 
-                    id="recurring" 
-                    checked={isRecurring} 
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setIsRecurring(e.target.checked);
-                      if (e.target.checked) setInstallments(1);
-                    }} 
-                    disabled={installments > 1}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
-                  />
-                  <label 
-                    htmlFor="recurring" 
-                    style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: installments > 1 ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    반복
-                  </label>
+                    <input 
+                      type="checkbox" 
+                      id="recurring" 
+                      checked={isRecurring} 
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIsRecurring(e.target.checked);
+                        if (e.target.checked) setInstallments(1);
+                      }} 
+                      disabled={type === 'expense' && installments > 1}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                    />
+                    <label 
+                      htmlFor="recurring" 
+                      style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: (type === 'expense' && installments > 1) ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      매월 반복
+                    </label>
+                  </div>
                 </div>
               </div>
-            </div> // form-group 닫기 추가
-          )}
-        </div>
+            )}
+          </div>
 
           <div className="form-group">
             <label>메모</label>
