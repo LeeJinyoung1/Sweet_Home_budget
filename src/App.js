@@ -666,6 +666,10 @@ const CalendarDashboard = ({ transactions, startDay, onAddClick, onEdit }) => {
  */
 const History = ({ transactions }) => {
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const currentMonthRef = React.useRef(null);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
   
   // 연간 데이터를 월별로 합산 (메모이제이션)
   const monthlyStats = useMemo(() => {
@@ -682,6 +686,15 @@ const History = ({ transactions }) => {
     return months.map(m => ({ ...m, balance: m.income - m.expense }));
   }, [transactions, viewYear]);
 
+  // 현재 월 항목으로 자동 스크롤
+  useEffect(() => {
+    if (currentMonthRef.current) {
+      setTimeout(() => {
+        currentMonthRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300); // 레이아웃 렌더링 대기 후 실행
+    }
+  }, [viewYear]);
+
   const yearlyTotalInc = monthlyStats.reduce((acc, curr) => acc + curr.income, 0);
   const yearlyTotalExp = monthlyStats.reduce((acc, curr) => acc + curr.expense, 0);
   const yearlyTotalInv = monthlyStats.reduce((acc, curr) => acc + curr.investment, 0);
@@ -689,22 +702,99 @@ const History = ({ transactions }) => {
 
   return (
     <div className="main-content">
-      <div className="calendar-header" style={{ marginBottom: '20px' }}><button onClick={() => setViewYear(viewYear - 1)} className="icon-btn"><ChevronLeft /></button><div style={{ textAlign: 'center' }}><h2 style={{ margin: 0 }}>{viewYear}년 내역 요약</h2><div style={{ fontSize: '12px', color: '#64748b' }}>연간 월별 현황</div></div><button onClick={() => setViewYear(viewYear + 1)} className="icon-btn"><ChevronRight /></button></div>
-      <div className="card" style={{ marginBottom: '25px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '15px 5px', textAlign: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-        <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b' , marginBottom: '4px' }}>연 수입</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>{yearlyTotalInc.toLocaleString()}</div></div>
-        <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 지출</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#dc2626' }}>{yearlyTotalExp.toLocaleString()}</div></div>
-        <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 투자(누적)</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#d97706' }}>{yearlyTotalInv.toLocaleString()}</div></div>
-        <div><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 잔액</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: yearlyBalance >= 0 ? '#4f46e5' : '#dc2626' }}>{yearlyBalance.toLocaleString()}</div></div>
+      {/* 상단 고정 영역 - 떨림 방지를 위한 하드웨어 가속 및 정밀 레이아웃 최적화 */}
+      <div style={{ 
+        position: 'sticky', 
+        top: '-0.5px', // 소수점 렌더링 오차 방지
+        zIndex: 100, 
+        backgroundColor: 'var(--bg)', 
+        margin: '-20px -20px 20px -20px', 
+        padding: '20px 20px 10px 20px',
+        borderBottom: '1px solid #e2e8f0', // 복잡한 그림자 대신 테두리 사용으로 부하 감소
+        WebkitTransform: 'translate3d(0,0,0)',
+        transform: 'translate3d(0,0,0)',
+        willChange: 'transform, top',
+        backfaceVisibility: 'hidden'
+      }}>
+        <div className="calendar-header" style={{ marginBottom: '15px' }}>
+          <button onClick={() => setViewYear(viewYear - 1)} className="icon-btn"><ChevronLeft /></button>
+          <div style={{ textAlign: 'center' }}>
+            <h2 style={{ margin: 0 }}>{viewYear}년 내역 요약</h2>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>연간 월별 현황</div>
+          </div>
+          <button onClick={() => setViewYear(viewYear + 1)} className="icon-btn"><ChevronRight /></button>
+        </div>
+        <div className="card" style={{ marginBottom: '15px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '15px 5px', textAlign: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+          <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b' , marginBottom: '4px' }}>연 수입</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>{yearlyTotalInc.toLocaleString()}</div></div>
+          <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 지출</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#dc2626' }}>{yearlyTotalExp.toLocaleString()}</div></div>
+          <div style={{ borderRight: '1px solid #e2e8f0' }}><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 투자(누적)</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: '#d97706' }}>{yearlyTotalInv.toLocaleString()}</div></div>
+          <div><div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>연 잔액</div><div style={{ fontSize: '11px', fontWeight: 'bold', color: yearlyBalance >= 0 ? '#4f46e5' : '#dc2626' }}>{yearlyBalance.toLocaleString()}</div></div>
+        </div>
       </div>
+
       <div className="monthly-list">
-        {monthlyStats.slice().reverse().map((item, index) => (
-          (item.income > 0 || item.expense > 0 || Math.abs(item.investment) > 0) && (
-            <div key={index} className="card" style={{ padding: '15px', marginBottom: '12px', borderLeft: `5px solid ${item.balance >= 0 ? '#4f46e5' : '#ef4444'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}><div style={{ fontWeight: 'bold', fontSize: '17px' }}>{item.name}</div><div style={{ textAlign: 'right', fontSize: '16px', fontWeight: 'bold', color: item.balance >= 0 ? '#4f46e5' : '#ef4444' }}>{item.balance >= 0 ? '+' : ''}{item.balance.toLocaleString()}</div></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569' }}><div>수입: <span style={{ color: '#16a34a', fontWeight: '500' }}>{item.income.toLocaleString()}</span></div><div>지출: <span style={{ color: '#dc2626', fontWeight: '500' }}>{item.expense.toLocaleString()}</span></div><div>투자: <span style={{ color: '#d97706', fontWeight: '500' }}>{item.investment.toLocaleString()}</span></div></div>
+        {monthlyStats.slice().reverse().map((item, index) => {
+          const isCurrentMonth = viewYear === currentYear && item.name === `${currentMonth}월`;
+          if (!(item.income > 0 || item.expense > 0 || Math.abs(item.investment) > 0)) return null;
+          
+          return (
+            <div 
+              key={index} 
+              ref={isCurrentMonth ? currentMonthRef : null}
+              className="card" 
+              style={{ 
+                padding: '0', 
+                marginBottom: '16px', 
+                overflow: 'hidden', 
+                border: isCurrentMonth ? '2px solid #4f46e5' : '1px solid #e2e8f0', 
+                borderRadius: '18px',
+                boxShadow: isCurrentMonth ? '0 10px 15px -3px rgba(79, 70, 229, 0.2)' : 'none'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                {/* 왼쪽 월 표시 영역 */}
+                <div style={{ 
+                  backgroundColor: item.balance >= 0 ? '#eff6ff' : '#fff1f2', 
+                  width: '60px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  borderRight: '1px solid #f1f5f9'
+                }}>
+                  <div style={{ fontSize: '12px', color: item.balance >= 0 ? '#3b82f6' : '#f43f5e', fontWeight: 'bold' }}>{viewYear}</div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: item.balance >= 0 ? '#1d4ed8' : '#e11d48' }}>{item.name.replace('월', '')}</div>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>MONTH</div>
+                </div>
+
+                {/* 오른쪽 상세 금액 영역 */}
+                <div style={{ flex: 1, padding: '15px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>월 결산 잔액</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: item.balance >= 0 ? '#2563eb' : '#dc2626' }}>
+                      {item.balance >= 0 ? '+' : ''}{item.balance.toLocaleString()}
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div style={{ backgroundColor: '#f0fdf4', padding: '8px 4px', borderRadius: '10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9px', color: '#16a34a', marginBottom: '2px' }}>수입</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#15803d' }}>{item.income.toLocaleString()}</div>
+                    </div>
+                    <div style={{ backgroundColor: '#fef2f2', padding: '8px 4px', borderRadius: '10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9px', color: '#ef4444', marginBottom: '2px' }}>지출</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#b91c1c' }}>{item.expense.toLocaleString()}</div>
+                    </div>
+                    <div style={{ backgroundColor: '#fffbeb', padding: '8px 4px', borderRadius: '10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9px', color: '#f59e0b', marginBottom: '2px' }}>투자</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#b45309' }}>{item.investment.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          )
-        ))}
+          );
+        })}
       </div>
     </div>
   );
