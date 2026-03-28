@@ -54,12 +54,14 @@ const COLORS = ['#4f46e5', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#8b5cf6'
  * 통계 화면 컴포넌트: 카테고리별 분석, 추세 그래프, 엑셀 내보내기 기능을 제공합니다.
  * @param {Array} transactions - 전체 내역 데이터
  * @param {number} startDay - 월 시작 기준일
+ * @param {function} onEdit - 내역 수정 핸들러
  */
-const Stats = ({ transactions, startDay }) => {
+const Stats = ({ transactions, startDay, onEdit }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [activeType, setActiveType] = useState('expense'); 
   const [trendRange, setTrendRange] = useState(6); 
   const [selectedTrendCategory, setSelectedTrendCategory] = useState(null);
+  const [historyModal, setHistoryModal] = useState({ isOpen: false, category: null });
   
   const { start, end, label } = getPeriodDates(viewDate, startDay);
   const filtered = transactions.filter(t => t.date >= start && t.date <= end);
@@ -231,7 +233,12 @@ const Stats = ({ transactions, startDay }) => {
               <span style={{ fontSize: '10px', color: '#64748b' }}>* 항목 클릭 시 하단 추세 확인</span>
             </div>
             {statsData.map((item, index) => (
-              <div key={index} className="card transaction-item compact" onClick={() => setSelectedTrendCategory(prev => prev === item.name ? null : item.name)} style={{ borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, padding: '15px', marginBottom: '10px', cursor: 'pointer', backgroundColor: selectedTrendCategory === item.name ? '#f1f5f9' : '#ffffff', border: selectedTrendCategory === item.name ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+              <div key={index} className="card transaction-item compact" 
+                onClick={() => {
+                  setSelectedTrendCategory(prev => prev === item.name ? null : item.name);
+                  setHistoryModal({ isOpen: true, category: item.name });
+                }} 
+                style={{ borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, padding: '15px', marginBottom: '10px', cursor: 'pointer', backgroundColor: selectedTrendCategory === item.name ? '#f1f5f9' : '#ffffff', border: selectedTrendCategory === item.name ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', transition: 'all 0.2s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</div>
                   <div style={{ textAlign: 'right' }}>
@@ -288,6 +295,44 @@ const Stats = ({ transactions, startDay }) => {
         </div>
       ) : (
         <div className="card" style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8', marginTop: '20px' }}>해당 기간의 {activeType === 'expense' ? '지출' : activeType === 'income' ? '수입' : '투자'} 내역이 없습니다.</div>
+      )}
+
+      {/* 카테고리별 상세 내역 팝업 모달 */}
+      {historyModal.isOpen && (
+        <div className="modal-overlay" onClick={() => setHistoryModal({ isOpen: false, category: null })}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={{ margin: 0 }}>{historyModal.category} 상세 내역</h3>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>{label} ({start} ~ {end})</div>
+              </div>
+              <button onClick={() => setHistoryModal({ isOpen: false, category: null })} className="close-btn"><X size={20} /></button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '5px' }}>
+              {filtered
+                .filter(t => t.category === historyModal.category && (activeType === 'investment' ? t.type === 'investment' : t.type === activeType))
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map(t => (
+                  <div key={t.id} className="card transaction-item compact" onClick={() => { onEdit(t); setHistoryModal({ isOpen: false, category: null }); }} style={{ marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{t.memo || t.category}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{t.date} · {t.paymentMethod || (t.isWithdrawal ? '출금' : '납입')}</div>
+                        <div className="author-info"><img src={t.userPhoto || 'https://via.placeholder.com/20'} alt={t.userName} className="author-avatar" /><span className="author-name">{t.userName}</span></div>
+                      </div>
+                      <div style={{ fontWeight: 'bold', color: t.type === 'expense' ? '#ef4444' : t.type === 'income' ? '#22c55e' : '#f59e0b' }}>{t.isWithdrawal ? '-' : ''}₩{t.amount.toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+              {filtered.filter(t => t.category === historyModal.category && (activeType === 'investment' ? t.type === 'investment' : t.type === activeType)).length === 0 && (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>상세 내역이 없습니다.</div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '15px', textAlign: 'right' }}>
+              <button onClick={() => setHistoryModal({ isOpen: false, category: null })} className="btn" style={{ backgroundColor: '#64748b' }}>닫기</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -436,7 +481,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<CalendarDashboard transactions={expandedTransactions} startDay={startDay} onAddClick={openAddModal} onEdit={openEditModal} />} />
                   <Route path="/history" element={<History transactions={expandedTransactions} onEdit={openEditModal} />} />
-                  <Route path="/stats" element={<Stats transactions={expandedTransactions} startDay={startDay} />} />
+                  <Route path="/stats" element={<Stats transactions={expandedTransactions} startDay={startDay} onEdit={openEditModal} />} />
                   <Route path="/settings" element={<SettingsView user={user} userProfile={userProfile} startDay={startDay} setStartDay={setStartDay} transactions={transactions} />} />
                   <Route path="/user-management" element={<UserManagement users={allUsers} onUpdate={async (id, data) => await updateDoc(doc(db, "users", id), data)} />} />
                   <Route path="/categories" element={<ListManager title="카테고리 관리" items={categories} onAdd={async (n, t) => await addDoc(collection(db, "categories"), { name: n, type: t, createdAt: serverTimestamp() })} onUpdate={async (id, n) => await updateDoc(doc(db, "categories", id), { name: n })} onDelete={async (id) => { if (window.confirm('삭제?')) await deleteDoc(doc(db, "categories", id)); }} backPath="/settings" />} />
