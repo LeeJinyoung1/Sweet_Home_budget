@@ -59,6 +59,7 @@ const COLORS = ['#4f46e5', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#8b5cf6'
 const Stats = ({ transactions, startDay, onEdit }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [activeType, setActiveType] = useState('expense'); 
+  const [viewMode, setViewMode] = useState('ranking'); // 'ranking' 또는 'trend'
   const [trendRange, setTrendRange] = useState(6); 
   const [selectedTrendCategory, setSelectedTrendCategory] = useState(null);
   const [historyModal, setHistoryModal] = useState({ isOpen: false, category: null });
@@ -208,88 +209,113 @@ const Stats = ({ transactions, startDay, onEdit }) => {
         <button className={activeType === 'investment' ? 'active investment' : ''} onClick={() => setActiveType('investment')}>투자</button>
       </div>
 
+      <div className="view-mode-selector" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+        <button 
+          onClick={() => setViewMode('ranking')} 
+          style={{ 
+            flex: 1, padding: '10px', borderRadius: '12px', border: 'none', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer',
+            backgroundColor: viewMode === 'ranking' ? '#4f46e5' : '#f1f5f9',
+            color: viewMode === 'ranking' ? 'white' : '#64748b',
+            transition: 'all 0.2s'
+          }}>
+          항목 순위
+        </button>
+        <button 
+          onClick={() => setViewMode('trend')} 
+          style={{ 
+            flex: 1, padding: '10px', borderRadius: '12px', border: 'none', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer',
+            backgroundColor: viewMode === 'trend' ? '#4f46e5' : '#f1f5f9',
+            color: viewMode === 'trend' ? 'white' : '#64748b',
+            transition: 'all 0.2s'
+          }}>
+          추세 그래프
+        </button>
+      </div>
+
       {statsData.length > 0 ? (
         <div style={{ marginTop: '20px' }}>
           <div className="card chart-card">
-            <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 순위' : activeType === 'income' ? '카테고리별 수입 순위' : '카테고리별 누적 투자 순위'}</h4>
-            <div style={{ width: '100%', height: Math.max(200, statsData.length * 45) }}>
-              <ResponsiveContainer>
-                <BarChart data={statsData} layout="vertical" margin={{ left: 10, right: 60, top: 0, bottom: 0 }}>
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={70} fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(v) => [v.toLocaleString(), ""]} separator="" cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
-                    {statsData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                    <LabelList dataKey="value" position="right" formatter={(v) => v.toLocaleString()} style={{ fontSize: '11px', fontWeight: 'bold', fill: '#475569' }} offset={10} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {viewMode === 'ranking' ? (
+              <>
+                <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 순위' : activeType === 'income' ? '카테고리별 수입 순위' : '카테고리별 누적 투자 순위'}</h4>
+                <div className="chart-scroll-container" style={{ width: '100%', height: '360px', overflowY: 'auto', paddingRight: '5px' }}>
+                  <div style={{ width: '100%', height: Math.max(360, statsData.length * 45) }}>
+                    <ResponsiveContainer>
+                      <BarChart data={statsData} layout="vertical" margin={{ left: 10, right: 60, top: 0, bottom: 0 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" width={70} fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip formatter={(v) => [v.toLocaleString(), ""]} separator="" cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                          {statsData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                          <LabelList dataKey="value" position="right" formatter={(v) => v.toLocaleString()} style={{ fontSize: '11px', fontWeight: 'bold', fill: '#475569' }} offset={10} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px' }}>카테고리별 소비 추세</h4>
+                    {selectedTrendCategory && (<button onClick={() => setSelectedTrendCategory(null)} style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', color: '#4f46e5', fontWeight: 'bold', cursor: 'pointer' }}>전체보기</button>)}
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[6, 12].map(range => (<button key={range} onClick={() => setTrendRange(range)} className={`small-btn ${trendRange === range ? 'active' : ''}`} style={{ backgroundColor: trendRange === range ? '#4f46e5' : '#f1f5f9', color: trendRange === range ? 'white' : '#64748b', padding: '4px 10px', fontSize: '10px' }}>{range}개월</button>))}
+                  </div>
+                </div>
+                <div style={{ width: '100%', height: 350 }}>
+                  <ResponsiveContainer>
+                    <LineChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} interval={trendRange === 12 ? 1 : 0} />
+                      <YAxis hide />
+                      <Tooltip formatter={(v) => v.toLocaleString()} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend iconType="circle" onClick={(e) => setSelectedTrendCategory(prev => prev === e.dataKey ? null : e.dataKey)} wrapperStyle={{ cursor: 'pointer', fontSize: '12px', marginTop: '10px' }} />
+                      {(selectedTrendCategory ? [selectedTrendCategory] : statsData.slice(0, 5).map(s => s.name)).map((catName) => {
+                        const originalIndex = statsData.findIndex(item => item.name === catName);
+                        const color = originalIndex !== -1 ? COLORS[originalIndex % COLORS.length] : '#4f46e5';
+                        return (
+                          <Line key={catName} type="monotone" dataKey={catName} stroke={color} strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="category-amount-list" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h3 style={{ fontSize: '16px', margin: 0, color: '#1e293b' }}>항목별 상세 내역</h3>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>* 항목 클릭 시 하단 추세 확인</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>
+                {viewMode === 'ranking' ? '* 항목 클릭 시 상세 내역 확인' : '* 항목 클릭 시 소비 추세 확인'}
+              </span>
             </div>
             {statsData.map((item, index) => (
               <div key={index} className="card transaction-item compact" 
                 onClick={() => {
                   setSelectedTrendCategory(prev => prev === item.name ? null : item.name);
-                  setHistoryModal({ isOpen: true, category: item.name });
+                  if (viewMode === 'ranking') {
+                    setHistoryModal({ isOpen: true, category: item.name });
+                  }
                 }} 
-                style={{ borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, padding: '15px', marginBottom: '10px', cursor: 'pointer', backgroundColor: selectedTrendCategory === item.name ? '#f1f5f9' : '#ffffff', border: selectedTrendCategory === item.name ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+                style={{ borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, padding: '8px 12px', marginBottom: '6px', cursor: 'pointer', backgroundColor: selectedTrendCategory === item.name ? '#f1f5f9' : '#ffffff', border: selectedTrendCategory === item.name ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', transition: 'all 0.2s' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '17px' }}>{item.value.toLocaleString()}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>{totalAmount !== 0 ? ((Math.abs(item.value) / Math.abs(totalAmount)) * 100).toFixed(1) : 0}%</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '14px', flex: 1 }}>{item.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', textAlign: 'right' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.value.toLocaleString()}</div>
+                    <div style={{ fontSize: '11px', color: '#64748b', minWidth: '35px' }}>{totalAmount !== 0 ? ((Math.abs(item.value) / Math.abs(totalAmount)) * 100).toFixed(1) : 0}%</div>
                   </div>
                 </div>
               </div>
             ))}
+
             <div className="card" style={{ backgroundColor: '#f8fafc', textAlign: 'right', padding: '15px', marginTop: '20px', border: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: '14px', color: '#64748b', marginRight: '10px' }}>총 합계</span>
               <span style={{ fontSize: '24px', fontWeight: 'bold', color: activeType === 'expense' ? '#ef4444' : activeType === 'income' ? '#22c55e' : '#f59e0b' }}>{totalAmount.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="card chart-card" style={{ marginTop: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '15px' }}>카테고리별 소비 추세</h4>
-                {selectedTrendCategory && (<button onClick={() => setSelectedTrendCategory(null)} style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', color: '#4f46e5', fontWeight: 'bold', cursor: 'pointer' }}>전체보기</button>)}
-              </div>
-              <div style={{ display: 'flex', gap: '5px' }}>
-                {[6, 12].map(range => (<button key={range} onClick={() => setTrendRange(range)} className={`small-btn ${trendRange === range ? 'active' : ''}`} style={{ backgroundColor: trendRange === range ? '#4f46e5' : '#f1f5f9', color: trendRange === range ? 'white' : '#64748b', padding: '4px 10px', fontSize: '10px' }}>{range}개월</button>))}
-              </div>
-            </div>
-            <div style={{ width: '100%', height: 250 }}>
-              <ResponsiveContainer>
-                <LineChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} interval={trendRange === 12 ? 1 : 0} />
-                  <YAxis hide />
-                  <Tooltip formatter={(v) => v.toLocaleString()} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend iconType="circle" onClick={(e) => setSelectedTrendCategory(prev => prev === e.dataKey ? null : e.dataKey)} wrapperStyle={{ cursor: 'pointer', fontSize: '12px', marginTop: '10px' }} />
-                  {/* 선택된 카테고리가 있으면 해당 카테고리만, 없으면 상위 5개 카테고리의 라인을 렌더링 */}
-                  {(selectedTrendCategory ? [selectedTrendCategory] : statsData.slice(0, 5).map(s => s.name)).map((catName) => {
-                    const originalIndex = statsData.findIndex(item => item.name === catName);
-                    const color = originalIndex !== -1 ? COLORS[originalIndex % COLORS.length] : '#4f46e5';
-                    return (
-                      <Line 
-                        key={catName} 
-                        type="monotone" 
-                        dataKey={catName} 
-                        stroke={color} 
-                        strokeWidth={3} 
-                        dot={{ r: 3 }} 
-                        activeDot={{ r: 6 }} 
-                      />
-                    );
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
             </div>
           </div>
         </div>
@@ -327,9 +353,6 @@ const Stats = ({ transactions, startDay, onEdit }) => {
               {filtered.filter(t => t.category === historyModal.category && (activeType === 'investment' ? t.type === 'investment' : t.type === activeType)).length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>상세 내역이 없습니다.</div>
               )}
-            </div>
-            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '15px', textAlign: 'right' }}>
-              <button onClick={() => setHistoryModal({ isOpen: false, category: null })} className="btn" style={{ backgroundColor: '#64748b' }}>닫기</button>
             </div>
           </div>
         </div>
