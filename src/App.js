@@ -468,7 +468,7 @@ function App() {
     setModalConfig({ isOpen: true, type: target.type, date: target.date, isWithdrawal: target.isWithdrawal || false, editData: target });
   };
 
-  if (loading) return (<div className="initial-loading"><img src="img/base_img.jpg" alt="Logo" className="loading-logo" /></div>);
+  if (loading) return (<div className="initial-loading"><img src="img/base_img.jpg" alt="Logo" className="loading-logo" fetchpriority="high" /></div>);
 
   return (
     <div className="App">
