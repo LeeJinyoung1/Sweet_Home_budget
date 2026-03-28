@@ -5,7 +5,8 @@ import { Home, List, PieChart as PieChartIcon, Settings, PlusCircle, X, ChevronL
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Cell, Legend, LabelList, LineChart, Line, CartesianGrid
+  Cell, Legend, LabelList, LineChart, Line, CartesianGrid,
+  PieChart, Pie
 } from 'recharts';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
@@ -237,21 +238,45 @@ const Stats = ({ transactions, startDay, onEdit }) => {
           <div className="card chart-card">
             {viewMode === 'ranking' ? (
               <>
-                <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 순위' : activeType === 'income' ? '카테고리별 수입 순위' : '카테고리별 누적 투자 순위'}</h4>
-                <div className="chart-scroll-container" style={{ width: '100%', height: '360px', overflowY: 'auto', paddingRight: '5px' }}>
-                  <div style={{ width: '100%', height: Math.max(360, statsData.length * 45) }}>
-                    <ResponsiveContainer>
-                      <BarChart data={statsData} layout="vertical" margin={{ left: 10, right: 60, top: 0, bottom: 0 }}>
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={70} fontSize={12} tickLine={false} axisLine={false} />
-                        <Tooltip formatter={(v) => [v.toLocaleString(), ""]} separator="" cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
-                          {statsData.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                          <LabelList dataKey="value" position="right" formatter={(v) => v.toLocaleString()} style={{ fontSize: '11px', fontWeight: 'bold', fill: '#475569' }} offset={10} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 비중' : activeType === 'income' ? '카테고리별 수입 비중' : '카테고리별 누적 투자 비중'}</h4>
+                <div style={{ width: '100%', height: '300px' }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={statsData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={1}
+                        label={(props) => (
+                          <text 
+                            x={props.x} 
+                            y={props.y} 
+                            fill="#475569" 
+                            textAnchor={props.textAnchor} 
+                            dominantBaseline="central"
+                            fontSize="9px"
+                            fontWeight="600"
+                          >
+                            {props.name.length > 7 ? props.name.substring(0, 6) + '..' : props.name} {`${(props.percent * 100).toFixed(0)}%`}
+                          </text>
+                        )}
+                        labelLine={true}
+                        style={{ outline: 'none' }}
+                      >
+                        {statsData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(v, name) => [v.toLocaleString() + "원", name]}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </>
             ) : (
@@ -688,11 +713,12 @@ const History = ({ transactions }) => {
 
   // 현재 월 항목으로 자동 스크롤
   useEffect(() => {
-    if (currentMonthRef.current) {
-      setTimeout(() => {
+    const timer = setTimeout(() => {
+      if (currentMonthRef.current) {
         currentMonthRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300); // 레이아웃 렌더링 대기 후 실행
-    }
+      }
+    }, 300); // 레이아웃 렌더링 대기 후 실행
+    return () => clearTimeout(timer);
   }, [viewYear]);
 
   const yearlyTotalInc = monthlyStats.reduce((acc, curr) => acc + curr.income, 0);
