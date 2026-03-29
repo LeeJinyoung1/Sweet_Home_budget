@@ -899,201 +899,195 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
   };
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target.className === 'modal-overlay') onClose(); }}>
+    <div className="modal-overlay">
       <div className="modal-content">
-        <div className="modal-drag-handle"></div>
-        
         <div className="modal-header">
           <h3>{editData ? '내역 수정' : '내역 추가'}</h3>
           <button onClick={onClose} className="close-btn"><X size={20} /></button>
         </div>
 
-        <div className="modal-body">
-          {!editData && (
-            <div className="type-selector">
-              <button className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>지출</button>
-              <button className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>수입</button>
-              <button className={type === 'investment' ? 'active investment' : ''} onClick={() => setType('investment')}>투자</button>
-            </div>
-          )}
+        {!editData && (
+          <div className="type-selector">
+            <button className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>지출</button>
+            <button className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>수입</button>
+            <button className={type === 'investment' ? 'active investment' : ''} onClick={() => setType('investment')}>투자</button>
+          </div>
+        )}
 
-          {type === 'investment' && !editData && (
-            <div className="type-selector" style={{ marginTop: '-12px', marginBottom: '24px', backgroundColor: '#fff7ed' }}>
-              <button 
-                className={!isWithdrawal ? 'active investment' : ''} 
-                onClick={() => setIsWithdrawal(false)}
-                style={{ color: !isWithdrawal ? '#d97706' : '#94a3b8' }}
-              >
-                납입 (+)
-              </button>
-              <button 
-                className={isWithdrawal ? 'active' : ''} 
-                style={{ backgroundColor: isWithdrawal ? 'white' : 'transparent', color: isWithdrawal ? '#9a3412' : '#94a3b8' }} 
-                onClick={() => setIsWithdrawal(true)}
-              >
-                출금 (-)
-              </button>
-            </div>
-          )}
+        {type === 'investment' && !editData && (
+          <div className="type-selector" style={{ marginTop: '-12px', marginBottom: '24px', backgroundColor: '#fff7ed' }}>
+            <button 
+              className={!isWithdrawal ? 'active investment' : ''} 
+              onClick={() => setIsWithdrawal(false)}
+              style={{ color: !isWithdrawal ? '#d97706' : '#94a3b8' }}
+            >
+              납입 (+)
+            </button>
+            <button 
+              className={isWithdrawal ? 'active' : ''} 
+              style={{ backgroundColor: isWithdrawal ? 'white' : 'transparent', color: isWithdrawal ? '#9a3412' : '#94a3b8' }} 
+              onClick={() => setIsWithdrawal(true)}
+            >
+              출금 (-)
+            </button>
+          </div>
+        )}
 
-          <form id="transaction-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
-              <div style={{ width: '100%' }}>
-                <input 
-                  type="number" 
-                  inputMode="decimal"
-                  value={amount} 
-                  onChange={(e) => setAmount(e.target.value)} 
-                  style={{ 
-                    fontSize: '20px', 
-                    fontWeight: '800'
-                  }}
-                  placeholder="0"
-                  autoFocus 
-                  required 
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'flex-end', boxSizing: 'border-box' }}>
-              <div className="form-group" style={{ flex: '1 1 55%', minWidth: 0 }}>
-                <label>날짜</label>
-                <input 
-                  type="date" 
-                  value={date} 
-                  onChange={(e) => setDate(e.target.value)} 
-                  required 
-                  style={{ width: '100%', display: 'block' }}
-                />
-              </div>
-              
-              {type === 'expense' && (
-                <div className="form-group" style={{ flex: '1 1 45%', minWidth: 0 }}>
-                  <label>결제 방법</label>
-                  <select 
-                    value={paymentMethod} 
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    style={{ width: '100%', display: 'block' }}
-                  >
-                    {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-            
-            <div className="form-group">
-              <label>카테고리</label>
-              <div className="category-list-container">
-                {categories.filter(c => {
-                  if (type === 'investment') {
-                    return isWithdrawal ? c.type === 'investment_withdrawal' : (c.type === 'investment_deposit' || c.type === 'investment');
-                  }
-                  return c.type === type;
-                }).map(cat => (
-                  <div
-                    key={cat.id}
-                    className={`category-list-item ${category === cat.name ? `selected ${type}` : ''}`}
-                    onClick={() => setCategory(cat.name)}
-                  >
-                    <div className="category-dot"></div>
-                    <span className="category-name">{cat.name}</span>
-                    {category === cat.name && (
-                      <div style={{ color: 'inherit', fontWeight: 'bold', fontSize: '18px' }}>✓</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
-              {(type === 'expense' || type === 'investment') && (
-                <div className="form-group">
-                  <label>{type === 'expense' ? '결제 옵션' : '입력 옵션'}</label>
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    alignItems: 'center', 
-                    backgroundColor: '#f8fafc', 
-                    padding: '12px', 
-                    borderRadius: '16px', 
-                    border: '1px solid #e2e8f0' 
-                  }}>
-                    {type === 'expense' && (
-                      <div style={{ flex: 1 }}>
-                        <select 
-                          value={installments} 
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            setInstallments(val);
-                            if (val > 1) setIsRecurring(false);
-                          }}
-                          disabled={isRecurring}
-                          style={{ padding: '8px', fontSize: '14px' }}
-                        >
-                          <option value={1}>일시불</option>
-                          {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
-                        </select>
-                      </div>
-                    )}
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '8px', 
-                        padding: '8px 12px', 
-                        backgroundColor: isRecurring ? 'white' : 'transparent',
-                        borderRadius: '12px',
-                        cursor: (type === 'expense' && installments > 1) ? 'not-allowed' : 'pointer',
-                        border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
-                        boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                        transition: 'all 0.2s',
-                        flex: type === 'investment' ? 1 : 'none',
-                        justifyContent: type === 'investment' ? 'center' : 'flex-start'
-                      }}
-                      onClick={() => {
-                        if (type === 'investment' || installments === 1) setIsRecurring(!isRecurring);
-                      }}
-                    >
-                      <input 
-                        type="checkbox" 
-                        id="recurring" 
-                        checked={isRecurring} 
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setIsRecurring(e.target.checked);
-                          if (e.target.checked) setInstallments(1);
-                        }} 
-                        disabled={type === 'expense' && installments > 1}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
-                      />
-                      <label 
-                        htmlFor="recurring" 
-                        style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: (type === 'expense' && installments > 1) ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        매월 반복
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label>메모</label>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>금액 {type === 'expense' && installments > 1 && `(월 ${Math.floor(amount/installments).toLocaleString()}원)`}</label>
+            <div style={{ width: '100%' }}>
               <input 
-                type="text" 
-                value={memo} 
-                onChange={(e) => setMemo(e.target.value)} 
-                placeholder="내용 입력 (선택)"
+                type="number" 
+                inputMode="decimal"
+                value={amount} 
+                onChange={(e) => setAmount(e.target.value)} 
+                style={{ 
+                  fontSize: '20px', 
+                  fontWeight: '800'
+                }}
+                placeholder="0"
+                autoFocus 
+                required 
               />
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="modal-footer">
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', alignItems: 'flex-end', boxSizing: 'border-box' }}>
+            <div className="form-group" style={{ flex: '1 1 55%', minWidth: 0 }}>
+              <label>날짜</label>
+              <input 
+                type="date" 
+                value={date} 
+                onChange={(e) => setDate(e.target.value)} 
+                required 
+                style={{ width: '100%', display: 'block' }}
+              />
+            </div>
+            
+            {type === 'expense' && (
+              <div className="form-group" style={{ flex: '1 1 45%', minWidth: 0 }}>
+                <label>결제 방법</label>
+                <select 
+                  value={paymentMethod} 
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  style={{ width: '100%', display: 'block' }}
+                >
+                  {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label>카테고리</label>
+            <div className="category-list-container">
+              {categories.filter(c => {
+                if (type === 'investment') {
+                  return isWithdrawal ? c.type === 'investment_withdrawal' : (c.type === 'investment_deposit' || c.type === 'investment');
+                }
+                return c.type === type;
+              }).map(cat => (
+                <div
+                  key={cat.id}
+                  className={`category-list-item ${category === cat.name ? `selected ${type}` : ''}`}
+                  onClick={() => setCategory(cat.name)}
+                >
+                  <div className="category-dot"></div>
+                  <span className="category-name">{cat.name}</span>
+                  {category === cat.name && (
+                    <div style={{ color: 'inherit', fontWeight: 'bold', fontSize: '18px' }}>✓</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+            {(type === 'expense' || type === 'investment') && (
+              <div className="form-group">
+                <label>{type === 'expense' ? '결제 옵션' : '입력 옵션'}</label>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '12px', 
+                  alignItems: 'center', 
+                  backgroundColor: '#f8fafc', 
+                  padding: '12px', 
+                  borderRadius: '16px', 
+                  border: '1px solid #e2e8f0' 
+                }}>
+                  {type === 'expense' && (
+                    <div style={{ flex: 1 }}>
+                      <select 
+                        value={installments} 
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setInstallments(val);
+                          if (val > 1) setIsRecurring(false);
+                        }}
+                        disabled={isRecurring}
+                        style={{ padding: '8px', fontSize: '14px' }}
+                      >
+                        <option value={1}>일시불</option>
+                        {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
+                      </select>
+                    </div>
+                  )}
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '8px 12px', 
+                      backgroundColor: isRecurring ? 'white' : 'transparent',
+                      borderRadius: '12px',
+                      cursor: (type === 'expense' && installments > 1) ? 'not-allowed' : 'pointer',
+                      border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
+                      boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                      transition: 'all 0.2s',
+                      flex: type === 'investment' ? 1 : 'none',
+                      justifyContent: type === 'investment' ? 'center' : 'flex-start'
+                    }}
+                    onClick={() => {
+                      if (type === 'investment' || installments === 1) setIsRecurring(!isRecurring);
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      id="recurring" 
+                      checked={isRecurring} 
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIsRecurring(e.target.checked);
+                        if (e.target.checked) setInstallments(1);
+                      }} 
+                      disabled={type === 'expense' && installments > 1}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                    />
+                    <label 
+                      htmlFor="recurring" 
+                      style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: (type === 'expense' && installments > 1) ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      매월 반복
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>메모</label>
+            <input 
+              type="text" 
+              value={memo} 
+              onChange={(e) => setMemo(e.target.value)} 
+              placeholder="내용 입력 (선택)"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexShrink: 0 }}>
             {editData && (
               <button 
                 type="button" 
@@ -1106,7 +1100,6 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
               </button>
             )}
             <button 
-              form="transaction-form"
               type="submit" 
               disabled={loading} 
               className="btn" 
@@ -1119,7 +1112,7 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
               {loading ? '처리 중...' : (editData ? '수정 완료' : '저장하기')}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
