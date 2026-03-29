@@ -90,46 +90,74 @@ body {
   opacity: 0.5;
 }
 
-/* Modal Styling - 재정의 */
+/* Modal Styling - Bottom Sheet 개편 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.4); /* 배경색 투명도 조절 */
+  backdrop-filter: blur(4px);
   display: flex;
-  align-items: center; /* 기본은 중앙 정렬 */
+  align-items: flex-end; /* 하단 정렬 */
   justify-content: center;
-  z-index: 200;
-  padding: 16px;
-  overflow-y: auto;
+  z-index: 2000; /* 네비게이션보다 높게 */
+  padding: 0; /* 패딩 제거 */
+  transition: opacity 0.3s ease;
 }
 
-@media (max-height: 700px) {
-  .modal-overlay { align-items: flex-start; } /* 작은 화면에서 상단 잘림 방지 */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .modal-content {
   background: white;
   width: 100%;
-  max-width: 400px;
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+  max-width: 500px; /* 태블릿 대응 */
+  border-radius: 24px 24px 0 0; /* 상단만 둥글게 */
+  padding: 12px 20px 30px 20px; /* 하단 여백 넉넉히 */
+  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
-  max-height: 90vh;
+  max-height: 95vh;
   display: flex;
-  flex-direction: column; /* 내부 요소 세로 정렬 */
+  flex-direction: column;
   position: relative;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden; /* 핸들과 헤더 고정을 위해 */
+}
+
+/* 드래그 핸들 (바텀 시트 상단 바) */
+.modal-drag-handle {
+  width: 40px;
+  height: 5px;
+  background-color: #e2e8f0;
+  border-radius: 10px;
+  margin: 0 auto 15px auto;
+  flex-shrink: 0;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px; /* 스크롤바 공간 */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 폼 내부의 버튼 컨테이너가 항상 하단에 보이도록 (Sticky 옵션) */
+.modal-footer {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
 
