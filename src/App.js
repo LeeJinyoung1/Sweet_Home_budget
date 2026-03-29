@@ -971,7 +971,10 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                 <label>결제 방법</label>
                 <select 
                   value={paymentMethod} 
-                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  onChange={(e) => {
+                    setPaymentMethod(e.target.value);
+                    e.target.blur(); // 선택 후 포커스 강제 해제 (스크롤 잠김 방지)
+                  }}
                   style={{ width: '100%', display: 'block' }}
                 >
                   {paymentMethods.map(pm => <option key={pm.id} value={pm.name}>{pm.name}</option>)}

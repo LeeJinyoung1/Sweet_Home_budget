@@ -125,6 +125,7 @@ body {
   position: relative;
   overflow-y: auto; /* 콘텐츠 박스 내부 스크롤 활성화 */
   -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
+  touch-action: pan-y; /* 세로 스크롤 터치 액션 강제 */
 }
 
 .modal-header {
@@ -180,6 +181,7 @@ form {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  touch-action: pan-y; /* 폼 내부 터치 스크롤 보강 */
 }
 
 .form-group {
