@@ -950,6 +950,7 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                 autoFocus 
                 required 
               />
+
             </div>
           </div>
 
