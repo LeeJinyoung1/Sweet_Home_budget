@@ -60,6 +60,7 @@ const COLORS = ['#4f46e5', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#8b5cf6'
 const Stats = ({ transactions, startDay, onEdit }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [activeType, setActiveType] = useState('expense'); 
+  const [isWithdrawal, setIsWithdrawal] = useState(false);
   const [viewMode, setViewMode] = useState('ranking'); // 'ranking' 또는 'trend'
   const [trendRange, setTrendRange] = useState(6); 
   const [selectedTrendCategory, setSelectedTrendCategory] = useState(null);
@@ -71,17 +72,17 @@ const Stats = ({ transactions, startDay, onEdit }) => {
   // 선택된 기간 및 타입에 따른 카테고리별 합계 계산 (메모이제이션)
   const statsData = useMemo(() => {
     const map = {};
-    const targetTransactions = activeType === 'investment' 
-      ? transactions.filter(t => t.type === 'investment' && t.date <= end) // 투자는 누적액 계산
-      : filtered.filter(t => t.type === activeType);
+    const targetTransactions = filtered.filter(t => {
+      if (activeType === 'investment') return t.type === 'investment' && t.isWithdrawal === isWithdrawal;
+      return t.type === activeType;
+    });
 
     targetTransactions.forEach(t => {
-      const amount = t.isWithdrawal ? -t.amount : t.amount;
-      map[t.category] = (map[t.category] || 0) + amount;
+      map[t.category] = (map[t.category] || 0) + t.amount;
     });
     return Object.keys(map).map(name => ({ name, value: map[name] }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions, filtered, activeType, end]);
+  }, [filtered, activeType, isWithdrawal]);
 
   const totalAmount = statsData.reduce((acc, curr) => acc + curr.value, 0);
 
@@ -95,25 +96,30 @@ const Stats = ({ transactions, startDay, onEdit }) => {
     /**
      * 특정 타입별 통계 데이터를 엑셀 시트용 객체 배열로 변환합니다.
      */
-    const getStatsData = (type) => {
+    const getStatsData = (type, withdrawal = false) => {
       const map = {};
-      const targetTs = type === 'investment'
-        ? transactions.filter(t => t.type === 'investment' && t.date <= end)
-        : filtered.filter(t => t.type === type);
+      const targetTs = filtered.filter(t => {
+        if (type === 'investment') return t.type === 'investment' && t.isWithdrawal === withdrawal;
+        return t.type === type;
+      });
       targetTs.forEach(t => {
-        const amount = t.isWithdrawal ? -t.amount : t.amount;
-        map[t.category] = (map[t.category] || 0) + amount;
+        map[t.category] = (map[t.category] || 0) + t.amount;
       });
       return Object.keys(map).map(name => ({
         '카테고리': name,
         '합계 금액': map[name],
-        '비중(%)': ((map[name] / (targetTs.reduce((acc, curr) => acc + (curr.isWithdrawal ? -curr.amount : curr.amount), 0) || 1)) * 100).toFixed(1) + '%'
+        '비중(%)': ((map[name] / (targetTs.reduce((acc, curr) => acc + curr.amount, 0) || 1)) * 100).toFixed(1) + '%'
       })).sort((a, b) => b['합계 금액'] - a['합계 금액']);
     };
 
-    const types = [{ id: 'expense', name: '지출 통계' }, { id: 'income', name: '수입 통계' }, { id: 'investment', name: '투자 통계' }];
+    const types = [
+      { id: 'expense', name: '지출 통계', w: false }, 
+      { id: 'income', name: '수입 통계', w: false }, 
+      { id: 'investment', name: '투자(납입) 통계', w: false },
+      { id: 'investment', name: '투자(출금) 통계', w: true }
+    ];
     types.forEach(t => {
-      const stats = getStatsData(t.id);
+      const stats = getStatsData(t.id, t.w);
       if (stats.length > 0) {
         const ws = XLSX.utils.json_to_sheet(stats);
         XLSX.utils.book_append_sheet(workbook, ws, t.name);
@@ -153,18 +159,21 @@ const Stats = ({ transactions, startDay, onEdit }) => {
       const mt = lp[1];
       const name = trendRange > 6 ? `${yr}.${mt}` : mt;
       const data = { name };
-      const targetTs = activeType === 'investment'
-        ? transactions.filter(t => t.type === 'investment' && t.date <= m.end)
-        : transactions.filter(t => t.date >= m.start && t.date <= m.end && t.type === activeType);
+      const targetTs = transactions.filter(t => {
+        const inPeriod = t.date >= m.start && t.date <= m.end;
+        if (!inPeriod) return false;
+        if (activeType === 'investment') return t.type === 'investment' && t.isWithdrawal === isWithdrawal;
+        return t.type === activeType;
+      });
       displayCategories.forEach(cat => {
-        data[cat] = targetTs.filter(t => t.category === cat).reduce((acc, curr) => acc + (curr.isWithdrawal ? -curr.amount : curr.amount), 0);
+        data[cat] = targetTs.filter(t => t.category === cat).reduce((acc, curr) => acc + curr.amount, 0);
       });
       return data;
     });
-  }, [transactions, viewDate, startDay, activeType, statsData, trendRange, selectedTrendCategory]);
+  }, [transactions, viewDate, startDay, activeType, isWithdrawal, statsData, trendRange, selectedTrendCategory]);
 
   // 타입이나 조회 기간 변경 시 선택된 추세 카테고리 초기화
-  useEffect(() => { setSelectedTrendCategory(null); }, [activeType, trendRange, viewDate]);
+  useEffect(() => { setSelectedTrendCategory(null); }, [activeType, isWithdrawal, trendRange, viewDate]);
 
   const totalInc = filtered.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const totalExp = filtered.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
@@ -205,9 +214,10 @@ const Stats = ({ transactions, startDay, onEdit }) => {
       </div>
 
       <div className="type-selector" style={{ marginTop: '20px' }}>
-        <button className={activeType === 'expense' ? 'active expense' : ''} onClick={() => setActiveType('expense')}>지출</button>
-        <button className={activeType === 'income' ? 'active income' : ''} onClick={() => setActiveType('income')}>수입</button>
-        <button className={activeType === 'investment' ? 'active investment' : ''} onClick={() => setActiveType('investment')}>투자</button>
+        <button className={activeType === 'expense' ? 'active expense' : ''} onClick={() => { setActiveType('expense'); setIsWithdrawal(false); }}>지출</button>
+        <button className={activeType === 'income' ? 'active income' : ''} onClick={() => { setActiveType('income'); setIsWithdrawal(false); }}>수입</button>
+        <button className={activeType === 'investment' && !isWithdrawal ? 'active investment' : ''} onClick={() => { setActiveType('investment'); setIsWithdrawal(false); }}>투자(+)</button>
+        <button className={activeType === 'investment' && isWithdrawal ? 'active investment' : ''} style={{ color: activeType === 'investment' && isWithdrawal ? '#9a3412' : '' }} onClick={() => { setActiveType('investment'); setIsWithdrawal(true); }}>투자(-)</button>
       </div>
 
       <div className="view-mode-selector" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
@@ -238,7 +248,7 @@ const Stats = ({ transactions, startDay, onEdit }) => {
           <div className="card chart-card">
             {viewMode === 'ranking' ? (
               <>
-                <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 비중' : activeType === 'income' ? '카테고리별 수입 비중' : '카테고리별 누적 투자 비중'}</h4>
+                <h4 style={{ margin: '0 0 15px 0', fontSize: '15px' }}>{activeType === 'expense' ? '카테고리별 지출 비중' : activeType === 'income' ? '카테고리별 수입 비중' : (isWithdrawal ? '카테고리별 투자 출금 비중' : '카테고리별 투자 납입 비중')}</h4>
                 <div style={{ width: '100%', height: '300px' }}>
                   <ResponsiveContainer>
                     <PieChart>
@@ -345,7 +355,7 @@ const Stats = ({ transactions, startDay, onEdit }) => {
           </div>
         </div>
       ) : (
-        <div className="card" style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8', marginTop: '20px' }}>해당 기간의 {activeType === 'expense' ? '지출' : activeType === 'income' ? '수입' : '투자'} 내역이 없습니다.</div>
+        <div className="card" style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8', marginTop: '20px' }}>해당 기간의 {activeType === 'expense' ? '지출' : activeType === 'income' ? '수입' : (isWithdrawal ? '투자 출금' : '투자 납입')} 내역이 없습니다.</div>
       )}
 
       {/* 카테고리별 상세 내역 팝업 모달 */}
@@ -361,7 +371,7 @@ const Stats = ({ transactions, startDay, onEdit }) => {
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: '5px' }}>
               {filtered
-                .filter(t => t.category === historyModal.category && (activeType === 'investment' ? t.type === 'investment' : t.type === activeType))
+                .filter(t => t.category === historyModal.category && (activeType === 'investment' ? (t.type === 'investment' && t.isWithdrawal === isWithdrawal) : t.type === activeType))
                 .sort((a, b) => new Date(b.date) - new Date(a.date))
                 .map(t => (
                   <div key={t.id} className="card transaction-item compact" onClick={() => { onEdit(t); setHistoryModal({ isOpen: false, category: null }); }} style={{ marginBottom: '10px' }}>
@@ -375,7 +385,7 @@ const Stats = ({ transactions, startDay, onEdit }) => {
                     </div>
                   </div>
                 ))}
-              {filtered.filter(t => t.category === historyModal.category && (activeType === 'investment' ? t.type === 'investment' : t.type === activeType)).length === 0 && (
+              {filtered.filter(t => t.category === historyModal.category && (activeType === 'investment' ? (t.type === 'investment' && t.isWithdrawal === isWithdrawal) : t.type === activeType)).length === 0 && (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>상세 내역이 없습니다.</div>
               )}
             </div>
@@ -446,12 +456,12 @@ function App() {
 
   // 거래 내역 데이터 실시간 동기화
   useEffect(() => {
-    if (!user) { setTransactions([]); return; }
+    if (!user || !userProfile?.approved) { setTransactions([]); return; }
     const unsubscribe = onSnapshot(query(collection(db, "transactions"), orderBy("date", "desc"), orderBy("createdAt", "desc")), (snap) => {
       setTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, userProfile]);
 
   /**
    * 원본 거래 내역을 바탕으로 할부 및 반복 결제 데이터를 가상 내역으로 확장합니다 (메모이제이션).
@@ -908,28 +918,10 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
 
         {!editData && (
           <div className="type-selector">
-            <button className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}>지출</button>
-            <button className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}>수입</button>
-            <button className={type === 'investment' ? 'active investment' : ''} onClick={() => setType('investment')}>투자</button>
-          </div>
-        )}
-
-        {type === 'investment' && !editData && (
-          <div className="type-selector" style={{ marginTop: '-12px', marginBottom: '24px', backgroundColor: '#fff7ed' }}>
-            <button 
-              className={!isWithdrawal ? 'active investment' : ''} 
-              onClick={() => setIsWithdrawal(false)}
-              style={{ color: !isWithdrawal ? '#d97706' : '#94a3b8' }}
-            >
-              납입 (+)
-            </button>
-            <button 
-              className={isWithdrawal ? 'active' : ''} 
-              style={{ backgroundColor: isWithdrawal ? 'white' : 'transparent', color: isWithdrawal ? '#9a3412' : '#94a3b8' }} 
-              onClick={() => setIsWithdrawal(true)}
-            >
-              출금 (-)
-            </button>
+            <button className={type === 'expense' ? 'active expense' : ''} onClick={() => { setType('expense'); setIsWithdrawal(false); }}>지출</button>
+            <button className={type === 'income' ? 'active income' : ''} onClick={() => { setType('income'); setIsWithdrawal(false); }}>수입</button>
+            <button className={type === 'investment' && !isWithdrawal ? 'active investment' : ''} onClick={() => { setType('investment'); setIsWithdrawal(false); }}>투자(+)</button>
+            <button className={type === 'investment' && isWithdrawal ? 'active investment' : ''} style={{ color: type === 'investment' && isWithdrawal ? '#9a3412' : '' }} onClick={() => { setType('investment'); setIsWithdrawal(true); }}>투자(-)</button>
           </div>
         )}
 
@@ -943,14 +935,13 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                 value={amount} 
                 onChange={(e) => setAmount(e.target.value)} 
                 style={{ 
-                  fontSize: '20px', 
+                  fontSize: '18px', 
                   fontWeight: '800'
                 }}
                 placeholder="0"
                 autoFocus 
                 required 
               />
-
             </div>
           </div>
 
@@ -1007,18 +998,17 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
             {(type === 'expense' || type === 'investment') && (
               <div className="form-group">
-                <label>{type === 'expense' ? '결제 옵션' : '입력 옵션'}</label>
+                <label style={{ marginBottom: '2px' }}>{type === 'expense' ? '결제 옵션' : '입력 옵션'}</label>
                 <div style={{ 
                   display: 'flex', 
-                  gap: '12px', 
+                  gap: '8px', 
                   alignItems: 'center', 
-                  backgroundColor: '#f8fafc', 
-                  padding: '12px', 
-                  borderRadius: '16px', 
-                  border: '1px solid #e2e8f0' 
+                  padding: '4px 0', 
+                  borderRadius: '0', 
+                  border: 'none' 
                 }}>
                   {type === 'expense' && (
                     <div style={{ flex: 1 }}>
@@ -1030,7 +1020,7 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                           if (val > 1) setIsRecurring(false);
                         }}
                         disabled={isRecurring}
-                        style={{ padding: '8px', fontSize: '14px' }}
+                        style={{ padding: '0 8px', fontSize: '13px', height: '36px' }}
                       >
                         <option value={1}>일시불</option>
                         {[...Array(23)].map((_, i) => (<option key={i+2} value={i+2}>{i+2}개월</option>))}
@@ -1041,13 +1031,12 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '8px 12px', 
-                      backgroundColor: isRecurring ? 'white' : 'transparent',
-                      borderRadius: '12px',
+                      gap: '6px', 
+                      padding: '6px 10px', 
+                      backgroundColor: isRecurring ? '#eef2ff' : '#f8fafc',
+                      borderRadius: '10px',
                       cursor: (type === 'expense' && installments > 1) ? 'not-allowed' : 'pointer',
-                      border: isRecurring ? '1px solid #4f46e5' : '1px solid transparent',
-                      boxShadow: isRecurring ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                      border: isRecurring ? '1px solid #4f46e5' : '1px solid #e2e8f0',
                       transition: 'all 0.2s',
                       flex: type === 'investment' ? 1 : 'none',
                       justifyContent: type === 'investment' ? 'center' : 'flex-start'
@@ -1066,11 +1055,11 @@ const TransactionModal = ({ isOpen, onClose, user, initialType, initialDate, isW
                         if (e.target.checked) setInstallments(1);
                       }} 
                       disabled={type === 'expense' && installments > 1}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }} 
                     />
                     <label 
                       htmlFor="recurring" 
-                      style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: (type === 'expense' && installments > 1) ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
+                      style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: (type === 'expense' && installments > 1) ? '#cbd5e1' : '#1e293b', cursor: 'pointer' }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       매월 반복
