@@ -7,13 +7,13 @@ import { getFirestore } from "firebase/firestore";
  * Firebase 프로젝트 설정 정보
  */
 const firebaseConfig = {
-  apiKey: "AIzaSyB2SufBJD7HYyKLLKDqJ5fzW6iwfqAfWMQ",
-  authDomain: "household-account-book-e1337.firebaseapp.com",
-  projectId: "household-account-book-e1337",
-  storageBucket: "household-account-book-e1337.firebasestorage.app",
-  messagingSenderId: "395367789962",
-  appId: "1:395367789962:web:81efa1c4da46c5f3968473",
-  measurementId: "G-BG2L79F9RJ"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
 // Firebase 앱 초기화
