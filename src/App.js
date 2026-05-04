@@ -65,6 +65,8 @@ const Stats = ({ transactions, startDay, onEdit }) => {
   const [trendRange, setTrendRange] = useState(6); 
   const [selectedTrendCategory, setSelectedTrendCategory] = useState(null);
   const [historyModal, setHistoryModal] = useState({ isOpen: false, category: null });
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   
   const { start, end, label } = getPeriodDates(viewDate, startDay);
   const filtered = transactions.filter(t => t.date >= start && t.date <= end);
@@ -85,6 +87,9 @@ const Stats = ({ transactions, startDay, onEdit }) => {
   }, [filtered, activeType, isWithdrawal]);
 
   const totalAmount = statsData.reduce((acc, curr) => acc + curr.value, 0);
+  const selectedTotal = statsData
+    .filter(item => selectedCategories.includes(item.name))
+    .reduce((acc, curr) => acc + curr.value, 0);
 
   /**
    * 현재 통계 데이터를 다중 시트 엑셀 파일로 생성하여 다운로드합니다.
@@ -172,8 +177,12 @@ const Stats = ({ transactions, startDay, onEdit }) => {
     });
   }, [transactions, viewDate, startDay, activeType, isWithdrawal, statsData, trendRange, selectedTrendCategory]);
 
-  // 타입이나 조회 기간 변경 시 선택된 추세 카테고리 초기화
-  useEffect(() => { setSelectedTrendCategory(null); }, [activeType, isWithdrawal, trendRange, viewDate]);
+  // 타입이나 조회 기간 변경 시 선택된 추세 카테고리 및 선택 모드 초기화
+  useEffect(() => { 
+    setSelectedTrendCategory(null); 
+    setIsSelectMode(false);
+    setSelectedCategories([]);
+  }, [activeType, isWithdrawal, trendRange, viewDate]);
 
   const totalInc = filtered.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
   const totalExp = filtered.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
@@ -324,22 +333,83 @@ const Stats = ({ transactions, startDay, onEdit }) => {
 
           <div className="category-amount-list" style={{ marginTop: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ fontSize: '16px', margin: 0, color: '#1e293b' }}>항목별 상세 내역</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '16px', margin: 0, color: '#1e293b' }}>항목별 상세 내역</h3>
+                <div 
+                  onClick={() => setIsSelectMode(!isSelectMode)} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    backgroundColor: isSelectMode ? '#eef2ff' : '#f1f5f9',
+                    border: `1px solid ${isSelectMode ? '#4f46e5' : '#e2e8f0'}`,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: isSelectMode ? '#4f46e5' : '#64748b' }}>선택</span>
+                  <div style={{ 
+                    width: '32px', 
+                    height: '18px', 
+                    backgroundColor: isSelectMode ? '#4f46e5' : '#cbd5e1', 
+                    borderRadius: '10px', 
+                    position: 'relative',
+                    transition: 'background-color 0.3s'
+                  }}>
+                    <div style={{ 
+                      width: '14px', 
+                      height: '14px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '50%', 
+                      position: 'absolute', 
+                      top: '2px', 
+                      left: isSelectMode ? '16px' : '2px',
+                      transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }} />
+                  </div>
+                </div>
+              </div>
               <span style={{ fontSize: '10px', color: '#64748b' }}>
-                {viewMode === 'ranking' ? '* 항목 클릭 시 상세 내역 확인' : '* 항목 클릭 시 소비 추세 확인'}
+                {isSelectMode ? '* 항목 선택 시 합계 계산' : (viewMode === 'ranking' ? '* 항목 클릭 시 상세 내역 확인' : '* 항목 클릭 시 소비 추세 확인')}
               </span>
             </div>
             {statsData.map((item, index) => (
               <div key={index} className="card transaction-item compact" 
                 onClick={() => {
-                  setSelectedTrendCategory(prev => prev === item.name ? null : item.name);
-                  if (viewMode === 'ranking') {
-                    setHistoryModal({ isOpen: true, category: item.name });
+                  if (isSelectMode) {
+                    setSelectedCategories(prev => 
+                      prev.includes(item.name) ? prev.filter(c => c !== item.name) : [...prev, item.name]
+                    );
+                  } else {
+                    setSelectedTrendCategory(prev => prev === item.name ? null : item.name);
+                    if (viewMode === 'ranking') {
+                      setHistoryModal({ isOpen: true, category: item.name });
+                    }
                   }
                 }} 
-                style={{ borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, padding: '8px 12px', marginBottom: '6px', cursor: 'pointer', backgroundColor: selectedTrendCategory === item.name ? '#f1f5f9' : '#ffffff', border: selectedTrendCategory === item.name ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+                style={{ 
+                  borderLeft: `4px solid ${COLORS[index % COLORS.length]}`, 
+                  padding: '8px 12px', 
+                  marginBottom: '6px', 
+                  cursor: 'pointer', 
+                  backgroundColor: (isSelectMode ? selectedCategories.includes(item.name) : selectedTrendCategory === item.name) ? '#f1f5f9' : '#ffffff', 
+                  border: (isSelectMode ? selectedCategories.includes(item.name) : selectedTrendCategory === item.name) ? '1.5px solid #4f46e5' : '1px solid #e2e8f0', 
+                  transition: 'all 0.2s' 
+                }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', flex: 1 }}>{item.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    {isSelectMode && (
+                      <input 
+                        type="checkbox" 
+                        checked={selectedCategories.includes(item.name)} 
+                        readOnly 
+                        style={{ cursor: 'pointer' }}
+                      />
+                    )}
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.name}</div>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', textAlign: 'right' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.value.toLocaleString()}</div>
                     <div style={{ fontSize: '11px', color: '#64748b', minWidth: '35px' }}>{totalAmount !== 0 ? ((Math.abs(item.value) / Math.abs(totalAmount)) * 100).toFixed(1) : 0}%</div>
@@ -348,7 +418,14 @@ const Stats = ({ transactions, startDay, onEdit }) => {
               </div>
             ))}
 
-            <div className="card" style={{ backgroundColor: '#f8fafc', textAlign: 'right', padding: '15px', marginTop: '20px', border: '1px solid #e2e8f0' }}>
+            {isSelectMode && (
+              <div className="card" style={{ backgroundColor: '#eef2ff', textAlign: 'right', padding: '15px', marginTop: '20px', border: '1px solid #c7d2fe' }}>
+                <span style={{ fontSize: '14px', color: '#4f46e5', marginRight: '10px' }}>선택 합계</span>
+                <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#4f46e5' }}>{selectedTotal.toLocaleString()}</span>
+              </div>
+            )}
+
+            <div className="card" style={{ backgroundColor: '#f8fafc', textAlign: 'right', padding: '15px', marginTop: isSelectMode ? '8px' : '20px', border: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: '14px', color: '#64748b', marginRight: '10px' }}>총 합계</span>
               <span style={{ fontSize: '24px', fontWeight: 'bold', color: activeType === 'expense' ? '#ef4444' : activeType === 'income' ? '#22c55e' : '#f59e0b' }}>{totalAmount.toLocaleString()}</span>
             </div>
