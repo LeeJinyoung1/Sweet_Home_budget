@@ -336,7 +336,10 @@ const Stats = ({ transactions, startDay, onEdit }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h3 style={{ fontSize: '16px', margin: 0, color: '#1e293b' }}>항목별 상세 내역</h3>
                 <div 
-                  onClick={() => setIsSelectMode(!isSelectMode)} 
+                  onClick={() => {
+                    setIsSelectMode(!isSelectMode);
+                    setSelectedCategories([]);
+                  }} 
                   style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
